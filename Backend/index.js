@@ -3,9 +3,11 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 
-const { getJobs } = require('./controllers/jobController');
+const { getJobs, createJob, updateJob, deleteJob } = require('./controllers/jobController');
 const { getCompanies } = require('./controllers/companyController');
 const { getSourceHealth } = require('./controllers/healthController');
+const { signup, login, setupProfile } = require('./controllers/authController');
+const { getStudents } = require('./controllers/adminController');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -21,8 +23,20 @@ app.use(express.json());
 
 // Routes
 app.get('/api/jobs', getJobs);
+app.post('/api/jobs', createJob);
+app.put('/api/jobs/:id', updateJob);
+app.delete('/api/jobs/:id', deleteJob);
+
 app.get('/api/companies', getCompanies);
 app.get('/api/source-health', getSourceHealth);
+
+// Auth Routes
+app.post('/api/auth/signup', signup);
+app.post('/api/auth/login', login);
+app.post('/api/auth/setup-profile', setupProfile);
+
+// Admin Routes
+app.get('/api/admin/students', getStudents);
 
 app.get('/api/stats', async (req, res) => {
   // In a real app, these would be aggregated from the DB

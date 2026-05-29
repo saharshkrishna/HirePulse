@@ -15,10 +15,11 @@ export function Topbar({ theme, onThemeToggle, query, onQueryChange, onCommandOp
             <Menu size={18} />
           </button>
           <div className="relative w-full max-w-xl">
-            {/* <Search className="search-icon" size={16} /> */}
+            <Search className="search-icon" size={16} />
             <input
               id="job-search"
-              className="input w-full pl-20 pr-20"
+              className="input w-full"
+              style={{ paddingLeft: '2.5rem', paddingRight: '5.5rem' }}
               placeholder="Search role, skill, company, or location"
               value={query}
               onChange={(e) => onQueryChange(e.target.value)}
