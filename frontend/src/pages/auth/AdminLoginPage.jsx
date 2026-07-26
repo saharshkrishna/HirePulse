@@ -25,12 +25,10 @@ export function AdminLoginPage() {
 
     setLoading(true)
     try {
-      // Mock network verification
-      await new Promise((resolve) => setTimeout(resolve, 800))
-      loginAdmin(email, password)
-      window.location.hash = '#/dashboard'
+      await loginAdmin(email, password)
+      window.location.hash = '#/admin/students'
     } catch (err) {
-      setError('Authorization failed. Check your admin credentials.')
+      setError(err.message || 'Authorization failed. Check your admin credentials.')
     } finally {
       setLoading(false)
     }
@@ -60,6 +58,27 @@ export function AdminLoginPage() {
             <span>{error}</span>
           </div>
         )}
+
+        {/* Demo Credentials Card */}
+        <div className="bg-warning/5 border border-warning/20 rounded-xl p-3.5 space-y-2 text-xs">
+          <div className="flex items-center justify-between font-semibold text-warning">
+            <span>🛡️ Demo Admin Account</span>
+            <button
+              type="button"
+              onClick={() => {
+                setEmail('admin@hirepulse.com')
+                setPassword('admin12345')
+              }}
+              className="px-2 py-0.5 rounded bg-warning/10 hover:bg-warning/20 transition-colors text-[11px] font-medium"
+            >
+              Auto-fill
+            </button>
+          </div>
+          <div className="text-textmuted space-y-0.5 font-mono">
+            <div><span className="text-textmain font-medium">Email:</span> admin@hirepulse.com</div>
+            <div><span className="text-textmain font-medium">Password:</span> admin12345</div>
+          </div>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-2">

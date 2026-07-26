@@ -192,6 +192,26 @@ const completeProfileSetup = async (profileType, details) => {
   }
 }
 
+// Action: General Profile Update (skills, resume, bio, etc.)
+const updateUserProfile = (updatedFields) => {
+  if (!user) return
+  const updatedUser = {
+    ...user,
+    ...updatedFields,
+  }
+
+  const savedUsers = JSON.parse(localStorage.getItem('hp_registered_users') || '[]')
+  const userIdx = savedUsers.findIndex((u) => u.email.toLowerCase() === user.email.toLowerCase())
+  if (userIdx > -1) {
+    savedUsers[userIdx] = updatedUser
+    localStorage.setItem('hp_registered_users', JSON.stringify(savedUsers))
+  }
+
+  setUser(updatedUser)
+  localStorage.setItem('hp_user', JSON.stringify(updatedUser))
+  return updatedUser
+}
+
 // Action: Logout
 const logout = () => {
   setUser(null)
@@ -199,7 +219,7 @@ const logout = () => {
 }
 
   return (
-    <AuthContext.Provider value={{ user, loading, loginUser, loginAdmin, signupUser, completeProfileSetup, logout }}>
+    <AuthContext.Provider value={{ user, loading, loginUser, loginAdmin, signupUser, completeProfileSetup, updateUserProfile, logout }}>
       {children}
     </AuthContext.Provider>
   )

@@ -33,12 +33,10 @@ export function UserSignupPage() {
 
     setLoading(true)
     try {
-      // Mock network delay
-      await new Promise((resolve) => setTimeout(resolve, 800))
-      signupUser({ name, email, phone, password })
+      await signupUser({ name, email, phone, password })
       window.location.hash = '#/setup-profile'
     } catch (err) {
-      setError('Signup failed. Email might already be registered.')
+      setError(err.message || 'Signup failed. Email might already be registered.')
     } finally {
       setLoading(false)
     }

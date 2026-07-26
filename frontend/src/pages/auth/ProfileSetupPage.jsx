@@ -157,7 +157,7 @@ export function ProfileSetupPage() {
         }
       }
 
-      completeProfileSetup(profileType, compiledDetails)
+      await completeProfileSetup(profileType, compiledDetails)
       setStep(3)
       
       // Redirect after success screen delay

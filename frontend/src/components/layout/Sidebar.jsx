@@ -1,6 +1,6 @@
 import {
   BellRing, BriefcaseBusiness, Building, Building2,
-  LayoutDashboard, Radar, Settings2, LogOut, GraduationCap
+  LayoutDashboard, Radar, Settings2, LogOut, GraduationCap, User
 } from 'lucide-react'
 import { Badge, Chip, LogoMark, Panel } from '../ui'
 import { useAuth } from '../../context/AuthContext'
@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react'
 
 const navItems = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '#dashboard' },
+  { label: 'Profile & Skills', icon: User, href: '#profile' },
   { label: 'Job feed', icon: BriefcaseBusiness, href: '#jobs' },
   { label: 'Companies', icon: Building2, href: '#companies' },
   { label: 'Alerts', icon: BellRing, href: '#alerts' },
@@ -39,7 +40,7 @@ export function Sidebar() {
     <aside className="sidebar flex flex-col justify-between h-screen pb-4">
       <div>
         {/* Brand */}
-        <div className="flex items-center gap-3 mb-8">
+        <div className="flex items-center gap-3 mb-6">
           <LogoMark>
             <svg viewBox="0 0 48 48" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.8" aria-label="HirePulse logo">
               <path d="M10 30c4-10 10-16 14-16s8 5 8 10-3 10-8 10-6-2-10-2" strokeLinecap="round" />
@@ -53,11 +54,48 @@ export function Sidebar() {
           </div>
         </div>
 
+        {/* User Session Profile Box (Top position) */}
+        {user && (
+          <div className="mb-6 flex items-center justify-between gap-3 bg-surface p-3 rounded-xl shadow-sm border border-border/80 hover:border-primary/50 transition-all group">
+            <a 
+              href={user.role === 'admin' ? '#/admin/students' : '#profile'} 
+              className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer no-underline text-inherit"
+              title="View Profile & Skills"
+            >
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0 group-hover:scale-105 transition-transform ${
+                user.role === 'admin' ? 'bg-warning/15 text-warning border border-warning/20' : 'bg-primary/15 text-primary border border-primary/20'
+              }`}>
+                {user.name.charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0">
+                <div className="font-display font-semibold text-sm truncate leading-tight group-hover:text-primary transition-colors">
+                  {user.name}
+                </div>
+                <div className="text-xs text-textmuted capitalize mt-0.5 truncate font-medium flex items-center gap-1">
+                  {user.role === 'admin' ? 'System Admin' : user.profileType || 'Candidate'}
+                </div>
+              </div>
+            </a>
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                logout()
+                window.location.hash = '#/login'
+              }}
+              title="Log out"
+              className="p-2 rounded-lg bg-surface-2 border border-border hover:bg-warning/10 hover:text-warning hover:border-warning/30 text-textmuted transition-all cursor-pointer flex-shrink-0"
+            >
+              <LogOut size={15} />
+            </button>
+          </div>
+        )}
+
         {/* Nav */}
         <nav className="space-y-1">
           {activeItems.map(({ label, icon: Icon, href }) => {
             const isActive = currentHash === href || 
               (href === '#dashboard' && currentHash === '#/dashboard') ||
+              (href === '#profile' && (currentHash === '#profile' || currentHash === '#/profile')) ||
               (href === '#/admin/students' && currentHash === '#/dashboard') // default admin hash redirect
             
             return (
@@ -70,7 +108,7 @@ export function Sidebar() {
         </nav>
 
         {/* Profile Fit */}
-        <Panel className="mt-8 p-4">
+        {/* <Panel className="mt-8 p-4">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-display text-base font-semibold">Profile fit</h2>
             <Badge tone="success">97%</Badge>
@@ -83,7 +121,7 @@ export function Sidebar() {
               <Chip key={item}>{item}</Chip>
             ))}
           </div>
-        </Panel>
+        </Panel> */}
 
         {/* Today summary */}
         <Panel className="mt-4 p-4">
@@ -98,35 +136,6 @@ export function Sidebar() {
           </ul>
         </Panel>
       </div>
-
-      {/* User Session Profile Box */}
-      {user && (
-        <div className="mt-6 pt-4 border-t border-border flex items-center justify-between gap-3 bg-surface p-3 rounded-xl shadow-sm border border-border/80">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0 ${
-              user.role === 'admin' ? 'bg-warning/15 text-warning border border-warning/20' : 'bg-primary/15 text-primary border border-primary/20'
-            }`}>
-              {user.name.charAt(0).toUpperCase()}
-            </div>
-            <div className="min-w-0">
-              <div className="font-display font-semibold text-sm truncate leading-tight text-text">{user.name}</div>
-              <div className="text-xs text-textmuted capitalize mt-0.5 truncate font-medium">
-                {user.role === 'admin' ? 'System Admin' : user.profileType || 'Candidate'}
-              </div>
-            </div>
-          </div>
-          <button
-            onClick={() => {
-              logout()
-              window.location.hash = '#/login'
-            }}
-            title="Log out"
-            className="p-2 rounded-lg bg-surface-2 border border-border hover:bg-warning/10 hover:text-warning hover:border-warning/30 text-textmuted transition-all cursor-pointer flex-shrink-0"
-          >
-            <LogOut size={15} />
-          </button>
-        </div>
-      )}
     </aside>
   )
 }

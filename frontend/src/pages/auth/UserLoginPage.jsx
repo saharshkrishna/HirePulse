@@ -25,12 +25,10 @@ export function UserLoginPage() {
 
     setLoading(true)
     try {
-      // Mock network delay
-      await new Promise((resolve) => setTimeout(resolve, 800))
-      loginUser(email, password)
+      await loginUser(email, password)
       window.location.hash = '#/dashboard'
     } catch (err) {
-      setError('Invalid email or password.')
+      setError(err.message || 'Invalid email or password.')
     } finally {
       setLoading(false)
     }
@@ -64,6 +62,27 @@ export function UserLoginPage() {
             <span>{error}</span>
           </div>
         )}
+
+        {/* Demo Credentials Card */}
+        <div className="bg-primary/5 border border-primary/20 rounded-xl p-3.5 space-y-2 text-xs">
+          <div className="flex items-center justify-between font-semibold text-primary">
+            <span>💡 Demo Candidate Account</span>
+            <button
+              type="button"
+              onClick={() => {
+                setEmail('alex.dev@hirepulse.com')
+                setPassword('password123')
+              }}
+              className="px-2 py-0.5 rounded bg-primary/10 hover:bg-primary/20 transition-colors text-[11px] font-medium"
+            >
+              Auto-fill
+            </button>
+          </div>
+          <div className="text-textmuted space-y-0.5 font-mono">
+            <div><span className="text-textmain font-medium">Email:</span> alex.dev@hirepulse.com</div>
+            <div><span className="text-textmain font-medium">Password:</span> password123</div>
+          </div>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-2">

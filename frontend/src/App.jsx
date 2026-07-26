@@ -3,6 +3,7 @@ import { Sidebar } from './components/layout/Sidebar'
 import { Topbar } from './components/layout/Topbar'
 import { CommandPalette } from './components/layout/CommandPalette'
 import { DashboardPage } from './pages/DashboardPage'
+import { ProfilePage } from './pages/ProfilePage'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { UserLoginPage } from './pages/auth/UserLoginPage'
 import { AdminLoginPage } from './pages/auth/AdminLoginPage'
@@ -104,6 +105,8 @@ function AppContent() {
           <main className="scroll-region">
             {user.role === 'admin' ? (
               <AdminDashboardPage currentTab={currentPath === '#/admin/jobs' ? 'jobs' : 'students'} />
+            ) : (currentPath === '#profile' || currentPath === '#/profile') ? (
+              <ProfilePage />
             ) : (
               <DashboardPage query={query} />
             )}
