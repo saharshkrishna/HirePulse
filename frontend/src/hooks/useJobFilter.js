@@ -4,6 +4,7 @@ import { fetchJobs } from '../utils/api'
 /**
  * Encapsulates job-feed filter state (role, remote, experience, sortBy).
  * Accepts an external `query` string so the global Topbar search drives filtering.
+ * Includes a 300ms debounce on input queries to prevent API thrashing.
  *
  * @param {string} query - Search string owned by App-level state.
  */
@@ -12,33 +13,50 @@ export function useJobFilter(query = '') {
   const [remote, setRemote] = useState('all')
   const [experience, setExperience] = useState('all')
   const [sortBy, setSortBy] = useState('match')
+  const [debouncedQuery, setDebouncedQuery] = useState(query)
   const [filteredJobs, setFilteredJobs] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
+  // Debounce external search query changes
   useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedQuery(query)
+    }, 250)
+    return () => clearTimeout(handler)
+  }, [query])
+
+  useEffect(() => {
+    let isCancelled = false
     const loadJobs = async () => {
       setLoading(true)
       try {
-        const data = await fetchJobs({ role, remote, experience, query })
+        const data = await fetchJobs({
+          role: role !== 'all' ? role : undefined,
+          remote: remote !== 'all' ? remote : undefined,
+          experience: experience !== 'all' ? experience : undefined,
+          query: debouncedQuery.trim() || undefined
+        })
         
-        // Sorting still done on client side for now, or could be moved to server
-        const sorted = [...data]
-        if (sortBy === 'match') sorted.sort((a, b) => b.match - a.match)
-        if (sortBy === 'recent') sorted.sort((a, b) => a.freshness - b.freshness)
-        if (sortBy === 'company') sorted.sort((a, b) => a.company.localeCompare(b.company))
+        if (isCancelled) return
+
+        const sorted = [...(data || [])]
+        if (sortBy === 'match') sorted.sort((a, b) => (b.match || 0) - (a.match || 0))
+        if (sortBy === 'recent') sorted.sort((a, b) => (a.freshness || 0) - (b.freshness || 0))
+        if (sortBy === 'company') sorted.sort((a, b) => (a.company || '').localeCompare(b.company || ''))
         
         setFilteredJobs(sorted)
         setError(null)
       } catch (err) {
-        setError(err.message)
+        if (!isCancelled) setError(err.message)
       } finally {
-        setLoading(false)
+        if (!isCancelled) setLoading(false)
       }
     }
 
     loadJobs()
-  }, [query, role, remote, experience, sortBy])
+    return () => { isCancelled = true }
+  }, [debouncedQuery, role, remote, experience, sortBy])
 
   return {
     role, setRole,

@@ -36,11 +36,24 @@ export function JobFeedSection({ query }) {
 
       <div className="jobs-grid">
         {loading ? (
-          <div className="p-8 text-center text-textmuted">Loading jobs...</div>
+          Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="job-card p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="h-5 w-40 skeleton" />
+                <div className="h-5 w-16 skeleton rounded-full" />
+              </div>
+              <div className="h-4 w-28 skeleton" />
+              <div className="flex gap-2 pt-2">
+                <div className="h-6 w-16 skeleton rounded-full" />
+                <div className="h-6 w-20 skeleton rounded-full" />
+                <div className="h-6 w-16 skeleton rounded-full" />
+              </div>
+            </div>
+          ))
         ) : error ? (
           <div className="p-8 text-center text-error">Error: {error}</div>
         ) : filteredJobs.length ? (
-          filteredJobs.map((job) => <JobCard key={job.id} job={job} />)
+          filteredJobs.map((job) => <JobCard key={job.id || job._id} job={job} />)
         ) : (
           <div className="surface-sub rounded-3xl p-8 text-center">
             <LogoMark className="mx-auto mb-4"><SearchX size={18} /></LogoMark>

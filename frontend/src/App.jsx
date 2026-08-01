@@ -22,10 +22,12 @@ function AppContent() {
   )
   const [query, setQuery] = useState('')
   const [commandOpen, setCommandOpen] = useState(false)
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   useEffect(() => {
     const handleHashChange = () => {
       setCurrentPath(window.location.hash || '#/login')
+      setMobileNavOpen(false) // auto close mobile drawer on nav transition
     }
     window.addEventListener('hashchange', handleHashChange)
     return () => window.removeEventListener('hashchange', handleHashChange)
@@ -100,6 +102,7 @@ function AppContent() {
             query={query}
             onQueryChange={setQuery}
             onCommandOpen={() => setCommandOpen(true)}
+            onMobileNavToggle={() => setMobileNavOpen(!mobileNavOpen)}
           />
 
           <main className="scroll-region">
@@ -113,6 +116,21 @@ function AppContent() {
           </main>
         </div>
       </div>
+
+      {/* Mobile Sidebar Overlay Drawer */}
+      {mobileNavOpen && (
+        <>
+          <div 
+            className="drawer-backdrop" 
+            onClick={() => setMobileNavOpen(false)} 
+            aria-hidden="true"
+          />
+          <Sidebar 
+            isMobileDrawer={true} 
+            onMobileClose={() => setMobileNavOpen(false)} 
+          />
+        </>
+      )}
 
       <CommandPalette isOpen={commandOpen} onClose={() => setCommandOpen(false)} />
     </div>

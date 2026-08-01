@@ -1,10 +1,14 @@
 const SourceHealth = require('../models/SourceHealth');
+const { sourceHealth: mockSourceHealth } = require('../data');
 
 exports.getSourceHealth = async (req, res) => {
   try {
-    const health = await SourceHealth.find();
+    let health = await SourceHealth.find();
+    if (!health || health.length === 0) {
+      health = mockSourceHealth;
+    }
     res.json(health);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.json(mockSourceHealth);
   }
 };

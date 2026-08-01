@@ -1,6 +1,6 @@
 import {
   BellRing, BriefcaseBusiness, Building, Building2,
-  LayoutDashboard, Radar, Settings2, LogOut, GraduationCap, User
+  LayoutDashboard, Radar, Settings2, LogOut, GraduationCap, User, X
 } from 'lucide-react'
 import { Badge, Chip, LogoMark, Panel } from '../ui'
 import { useAuth } from '../../context/AuthContext'
@@ -22,7 +22,7 @@ const adminNavItems = [
   { label: 'Manage Jobs', icon: BriefcaseBusiness, href: '#/admin/jobs' },
 ]
 
-export function Sidebar() {
+export function Sidebar({ onMobileClose, isMobileDrawer = false }) {
   const { user, logout } = useAuth()
   const [currentHash, setCurrentHash] = useState(window.location.hash || '#dashboard')
 
@@ -37,21 +37,32 @@ export function Sidebar() {
   const activeItems = user?.role === 'admin' ? adminNavItems : navItems
 
   return (
-    <aside className="sidebar flex flex-col justify-between h-screen pb-4">
+    <aside className={isMobileDrawer ? "mobile-drawer" : "sidebar flex flex-col justify-between h-screen pb-4"}>
       <div>
         {/* Brand */}
-        <div className="flex items-center gap-3 mb-6">
-          <LogoMark>
-            <svg viewBox="0 0 48 48" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.8" aria-label="HirePulse logo">
-              <path d="M10 30c4-10 10-16 14-16s8 5 8 10-3 10-8 10-6-2-10-2" strokeLinecap="round" />
-              <path d="M28 15l9-6" strokeLinecap="round" />
-              <circle cx="39" cy="9" r="3" fill="currentColor" stroke="none" />
-            </svg>
-          </LogoMark>
-          <div>
-            <div className="font-display text-lg font-semibold leading-none">HirePulse</div>
-            <div className="text-sm text-textmuted">AI hiring intelligence</div>
+        <div className="flex items-center justify-between gap-3 mb-6">
+          <div className="flex items-center gap-3">
+            <LogoMark>
+              <svg viewBox="0 0 48 48" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.8" aria-label="HirePulse logo">
+                <path d="M10 30c4-10 10-16 14-16s8 5 8 10-3 10-8 10-6-2-10-2" strokeLinecap="round" />
+                <path d="M28 15l9-6" strokeLinecap="round" />
+                <circle cx="39" cy="9" r="3" fill="currentColor" stroke="none" />
+              </svg>
+            </LogoMark>
+            <div>
+              <div className="font-display text-lg font-semibold leading-none">HirePulse</div>
+              <div className="text-sm text-textmuted">AI hiring intelligence</div>
+            </div>
           </div>
+          {isMobileDrawer && (
+            <button 
+              onClick={onMobileClose}
+              className="p-2 rounded-lg bg-surface-2 border border-border text-textmuted hover:text-textmain"
+              aria-label="Close menu"
+            >
+              <X size={18} />
+            </button>
+          )}
         </div>
 
         {/* User Session Profile Box (Top position) */}
@@ -59,6 +70,7 @@ export function Sidebar() {
           <div className="mb-6 flex items-center justify-between gap-3 bg-surface p-3 rounded-xl shadow-sm border border-border/80 hover:border-primary/50 transition-all group">
             <a 
               href={user.role === 'admin' ? '#/admin/students' : '#profile'} 
+              onClick={() => isMobileDrawer && onMobileClose && onMobileClose()}
               className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer no-underline text-inherit"
               title="View Profile & Skills"
             >
@@ -80,6 +92,7 @@ export function Sidebar() {
               onClick={(e) => {
                 e.stopPropagation()
                 logout()
+                if (onMobileClose) onMobileClose()
                 window.location.hash = '#/login'
               }}
               title="Log out"
@@ -96,32 +109,21 @@ export function Sidebar() {
             const isActive = currentHash === href || 
               (href === '#dashboard' && currentHash === '#/dashboard') ||
               (href === '#profile' && (currentHash === '#profile' || currentHash === '#/profile')) ||
-              (href === '#/admin/students' && currentHash === '#/dashboard') // default admin hash redirect
+              (href === '#/admin/students' && currentHash === '#/dashboard')
             
             return (
-              <a key={label} href={href} className={`nav-link ${isActive ? 'active' : ''}`}>
+              <a 
+                key={label} 
+                href={href} 
+                onClick={() => isMobileDrawer && onMobileClose && onMobileClose()}
+                className={`nav-link ${isActive ? 'active' : ''}`}
+              >
                 <Icon size={18} />
                 <span>{label}</span>
               </a>
             )
           })}
         </nav>
-
-        {/* Profile Fit */}
-        {/* <Panel className="mt-8 p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-display text-base font-semibold">Profile fit</h2>
-            <Badge tone="success">97%</Badge>
-          </div>
-          <p className="text-sm text-textmuted mb-4">
-            Configured for full stack, React, Node.js, cloud, and mobile roles.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {['React', 'Node.js', 'React Native', 'PostgreSQL', 'AWS'].map((item) => (
-              <Chip key={item}>{item}</Chip>
-            ))}
-          </div>
-        </Panel> */}
 
         {/* Today summary */}
         <Panel className="mt-4 p-4">

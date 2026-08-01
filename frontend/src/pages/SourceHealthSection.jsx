@@ -38,13 +38,17 @@ export function SourceHealthSection() {
         </button>
       </div>
 
-      <div className="table-wrap">
+      <div className="table-wrap overflow-x-auto">
         {loading && sourceHealth.length === 0 ? (
-          <div className="p-8 text-center text-textmuted">Loading health status...</div>
+          <div className="space-y-3 p-4">
+            <div className="h-8 w-full skeleton" />
+            <div className="h-8 w-full skeleton" />
+            <div className="h-8 w-full skeleton" />
+          </div>
         ) : error ? (
           <div className="p-8 text-center text-error">{error}</div>
         ) : (
-          <table>
+          <table className="w-full min-w-[500px]">
             <thead>
               <tr>
                 <th>Source</th>
@@ -55,15 +59,15 @@ export function SourceHealthSection() {
               </tr>
             </thead>
             <tbody>
-              {sourceHealth.map((item) => (
-                <tr key={item.source}>
-                  <td>{item.source}</td>
+              {sourceHealth.map((item, idx) => (
+                <tr key={item.source || idx}>
+                  <td className="font-semibold">{item.source}</td>
                   <td>
                     <Badge tone={item.status === 'Verify' ? 'warning' : 'success'}>{item.status}</Badge>
                   </td>
-                  <td>{item.freshness}</td>
+                  <td className="text-textmuted">{item.freshness}</td>
                   <td>{item.records}</td>
-                  <td>{item.confidence}</td>
+                  <td className="font-mono">{item.confidence}</td>
                 </tr>
               ))}
             </tbody>

@@ -3,15 +3,20 @@ import { Filter, Menu, Moon, Search, Sparkles, Sun } from 'lucide-react'
 /**
  * @param {{ theme: string, onThemeToggle: () => void,
  *           query: string, onQueryChange: (v: string) => void,
- *           onCommandOpen: () => void }} props
+ *           onCommandOpen: () => void,
+ *           onMobileNavToggle?: () => void }} props
  */
-export function Topbar({ theme, onThemeToggle, query, onQueryChange, onCommandOpen }) {
+export function Topbar({ theme, onThemeToggle, query, onQueryChange, onCommandOpen, onMobileNavToggle }) {
   return (
     <header className="topbar">
-      <div className="px-4 lg:px-8 py-4 flex items-center gap-3 justify-between">
+      <div className="px-4 lg:px-8 py-3.5 flex items-center gap-3 justify-between">
         {/* Left: hamburger + search */}
         <div className="flex items-center gap-3 min-w-0 flex-1">
-          <button className="btn btn-ghost mobile-nav" aria-label="Open navigation">
+          <button 
+            className="btn btn-ghost mobile-nav" 
+            onClick={onMobileNavToggle}
+            aria-label="Open navigation"
+          >
             <Menu size={18} />
           </button>
           <div className="relative w-full max-w-xl">
@@ -20,7 +25,7 @@ export function Topbar({ theme, onThemeToggle, query, onQueryChange, onCommandOp
               id="job-search"
               className="input w-full"
               style={{ paddingLeft: '2.5rem', paddingRight: '5.5rem' }}
-              placeholder="Search role, skill, company, or location"
+              placeholder="Search role, skill, company..."
               value={query}
               onChange={(e) => onQueryChange(e.target.value)}
             />

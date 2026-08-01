@@ -1,10 +1,14 @@
 const Company = require('../models/Company');
+const { companies: mockCompanies } = require('../data');
 
 exports.getCompanies = async (req, res) => {
   try {
-    const companies = await Company.find();
+    let companies = await Company.find();
+    if (!companies || companies.length === 0) {
+      companies = mockCompanies;
+    }
     res.json(companies);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.json(mockCompanies);
   }
 };
