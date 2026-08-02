@@ -1,5 +1,4 @@
 const Job = require('../models/Job');
-const SourceHealth = require('../models/SourceHealth');
 
 /**
  * POST /api/n8n/ingest
@@ -112,9 +111,6 @@ exports.ingestJobs = async (req, res) => {
       }
     }
 
-    // --- Auto-update SourceHealth for this scraper ---
-    await upsertSourceHealth(workflow, jobsArray.length - results.errors.length, scrapedAt);
-
     // --- Mark stale jobs from this workflow ---
     // Jobs from this workflow that were NOT updated/inserted in this run are now potentially stale.
     // We flag them if scrapedAt is older than 48 hours.
@@ -201,33 +197,6 @@ exports.getSources = async (req, res) => {
 };
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-
-/**
- * Upsert a SourceHealth record for the n8n workflow.
- */
-async function upsertSourceHealth(workflow, recordCount, scrapedAt) {
-  try {
-    const minutesAgo = Math.floor((Date.now() - scrapedAt.getTime()) / 60000);
-    const freshnessLabel = minutesAgo < 1 ? 'Just now' : `${minutesAgo}m ago`;
-
-    await SourceHealth.findOneAndUpdate(
-      { source: workflow },
-      {
-        $set: {
-          source: workflow,
-          status: 'Healthy',
-          freshness: freshnessLabel,
-          records: recordCount,
-          confidence: 'High',
-          lastIngestedAt: scrapedAt,
-        }
-      },
-      { upsert: true, new: true }
-    );
-  } catch (err) {
-    console.error('[n8n ingest] Failed to update SourceHealth:', err.message);
-  }
-}
 
 /**
  * Mark jobs from a workflow as stale if they were last scraped before this run.

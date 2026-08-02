@@ -12,7 +12,6 @@ const navItems = [
   { label: 'Job feed', icon: BriefcaseBusiness, href: '#jobs' },
   { label: 'Companies', icon: Building2, href: '#companies' },
   { label: 'Alerts', icon: BellRing, href: '#alerts' },
-  { label: 'Source health', icon: Radar, href: '#sources' },
   { label: 'Saved jobs', icon: Building, href: '#saved' },
   { label: 'Preferences', icon: Settings2, href: '#settings' },
 ]

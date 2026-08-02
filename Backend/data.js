@@ -22,12 +22,4 @@ const jobs = [
   { id: 12, title: 'Backend Engineer', company: 'Supabase', location: 'Remote', remote: 'remote', experience: 'mid', salary: '$110k–$150k', tags: ['Go', 'PostgreSQL', 'Supabase'], source: 'Remotive', posted: '5d ago', freshness: 120, match: 89, isNew: false },
 ];
 
-const sourceHealth = [
-  { source: 'Greenhouse', status: 'Healthy', freshness: '4 min ago', records: 482, confidence: '98%' },
-  { source: 'Lever', status: 'Healthy', freshness: '7 min ago', records: 351, confidence: '97%' },
-  { source: 'RemoteOK', status: 'Healthy', freshness: '11 min ago', records: 198, confidence: '94%' },
-  { source: 'Ashby', status: 'Verify', freshness: '34 min ago', records: 142, confidence: '89%' },
-  { source: 'Career Pages', status: 'Healthy', freshness: '9 min ago', records: 621, confidence: '91%' },
-];
-
-module.exports = { companies, jobs, sourceHealth };
+module.exports = { companies, jobs };

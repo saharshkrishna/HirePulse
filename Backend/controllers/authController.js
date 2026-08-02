@@ -86,6 +86,7 @@ exports.signup = async (req, res) => {
       role: 'user',
       profileType: null,
       isSetupCompleted: false,
+      profileDetails: {},
     };
 
     return res.status(201).json({
@@ -197,6 +198,7 @@ exports.login = async (req, res) => {
       role: 'user',
       profileType: user.profileType,
       isSetupCompleted: user.isSetupCompleted,
+      profileDetails: user.profileDetails,
     };
 
     return res.status(200).json({
@@ -248,6 +250,7 @@ exports.setupProfile = async (req, res) => {
       role: 'user',
       profileType: user.profileType,
       isSetupCompleted: user.isSetupCompleted,
+      profileDetails: user.profileDetails,
     };
 
     return res.status(200).json({

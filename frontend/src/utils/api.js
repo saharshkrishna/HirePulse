@@ -31,21 +31,9 @@ export async function fetchCompanies() {
   return res.json();
 }
 
-export async function fetchSourceHealth() {
-  const res = await fetch(`${API_BASE_URL}/source-health`);
-  if (!res.ok) throw new Error('Failed to fetch source health');
-  return res.json();
-}
-
 export async function fetchStats() {
   const res = await fetch(`${API_BASE_URL}/stats`);
   if (!res.ok) throw new Error('Failed to fetch stats');
-  return res.json();
-}
-
-export async function fetchN8nSources() {
-  const res = await fetch(`${API_BASE_URL}/n8n/sources`);
-  if (!res.ok) throw new Error('Failed to fetch n8n sources');
   return res.json();
 }
 

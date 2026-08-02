@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react'
 import {
-  BriefcaseBusiness, Radar, Sparkles, Building2, BellRing, Building,
+  BriefcaseBusiness, Sparkles, Building2, BellRing, Building,
   LayoutDashboard, Layers
 } from 'lucide-react'
 import { Badge, MatchBar, Panel } from '../components/ui'
 import { JobFeedSection } from './JobFeedSection'
-import { SourceHealthSection } from './SourceHealthSection'
 import { CompaniesSection } from './CompaniesSection'
 import { AlertsSection } from './AlertsSection'
 import { SavedSearchesSection } from './SavedSearchesSection'
@@ -18,12 +17,11 @@ import { fetchStats } from '../utils/api'
 export function DashboardPage({ query }) {
   const [stats, setStats] = useState(null)
   
-  // Tab State hash sync (jobs, companies, sources, alerts, saved, all)
+  // Tab State hash sync (jobs, companies, alerts, saved, all)
   const getTabFromHash = () => {
     const hash = window.location.hash || '#dashboard'
     if (hash.includes('#jobs') || hash.includes('#/jobs')) return 'jobs'
     if (hash.includes('#companies') || hash.includes('#/companies')) return 'companies'
-    if (hash.includes('#sources') || hash.includes('#/sources')) return 'sources'
     if (hash.includes('#alerts') || hash.includes('#/alerts')) return 'alerts'
     if (hash.includes('#saved') || hash.includes('#/saved')) return 'saved'
     return 'all' // Default on opening dashboard is All Sections View
@@ -62,14 +60,12 @@ export function DashboardPage({ query }) {
     ['New jobs today',    stats?.newJobsToday || '148',  'Across Greenhouse, Lever, RemoteOK, Ashby, and career pages.', BriefcaseBusiness],
     ['High-fit matches',  stats?.highFitMatches || '34',   'AI scoring over 85% based on role, stack, and recency.',               Sparkles],
     ['Watched companies', stats?.watchedCompanies || '62',   'Prioritized software, cloud, fintech, SaaS, and platform teams.',      Building2],
-    ['Healthy sources',   stats?.healthySources || '92%',  'Crawl reliability over the last 24 hours with retry protection.',      Radar],
   ]
 
   const TABS = [
     { id: 'all', label: 'All Sections View', icon: Layers, hash: '#dashboard' },
-    { id: 'jobs', label: 'Job Feed', icon: BriefcaseBusiness, hash: '#jobs', badge: '148' },
-    { id: 'companies', label: 'Tracked Companies', icon: Building2, hash: '#companies', badge: '62' },
-    { id: 'sources', label: 'Source Health', icon: Radar, hash: '#sources', badge: '92%' },
+    { id: 'jobs', label: 'Job Feed', icon: BriefcaseBusiness, hash: '#jobs', badge: stats?.newJobsToday || '148' },
+    { id: 'companies', label: 'Tracked Companies', icon: Building2, hash: '#companies', badge: stats?.watchedCompanies || '62' },
     { id: 'alerts', label: 'Alerts & Signals', icon: BellRing, hash: '#alerts', badge: '3' },
     { id: 'saved', label: 'Saved Searches', icon: Building, hash: '#saved' },
   ]
@@ -80,8 +76,8 @@ export function DashboardPage({ query }) {
       <section className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-2">
-            <Badge><Radar size={14} />Live monitoring</Badge>
-            <Badge tone="success">{stats?.healthySources ? '12 sources healthy' : 'Checking sources...'}</Badge>
+            <Badge><BriefcaseBusiness size={14} />Live monitoring</Badge>
+            <Badge tone="success">Active feed</Badge>
           </div>
           <h1 className="hero-title font-display font-semibold tracking-tight">
             Find every serious IT hiring signal in one focused workspace.
@@ -162,12 +158,6 @@ export function DashboardPage({ query }) {
           </div>
         )}
 
-        {activeTab === 'sources' && (
-          <div className="max-w-5xl mx-auto">
-            <SourceHealthSection />
-          </div>
-        )}
-
         {activeTab === 'alerts' && (
           <div className="max-w-4xl mx-auto">
             <AlertsSection />
@@ -185,7 +175,6 @@ export function DashboardPage({ query }) {
           <section className="grid-main">
             <div className="space-y-6">
               <JobFeedSection query={query} />
-              <SourceHealthSection />
             </div>
 
             <aside className="space-y-6">

@@ -3,7 +3,7 @@ import {
   User, Mail, Phone, MapPin, Briefcase, FileText, UploadCloud,
   Plus, X, Check, CheckCircle2, Sparkles, Building2, ExternalLink,
   Shield, ArrowUpRight, FileCheck, Trash2, Download, Eye, RefreshCw,
-  Clock, CheckCircle, AlertCircle, ChevronRight, Send
+  Clock, CheckCircle, AlertCircle, ChevronRight, Send, GraduationCap
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { fetchJobs } from '../utils/api'
@@ -56,26 +56,21 @@ const DEFAULT_APPLIED_JOBS = [
 export function ProfilePage() {
   const { user, updateUserProfile } = useAuth()
   
-  // Skills state
-  const defaultSkills = user?.skills || [
-    'React', 'TypeScript', 'Node.js', 'CSS', 'PostgreSQL', 'AWS'
-  ]
-  const [skills, setSkills] = useState(defaultSkills)
+  // Skills state — initialized from context, synced via useEffect when user loads
+  const [skills, setSkills] = useState([])
   const [newSkillInput, setNewSkillInput] = useState('')
   
   // Applied Jobs State
-  const defaultApplied = user?.appliedJobs || DEFAULT_APPLIED_JOBS
-  const [appliedJobs, setAppliedJobs] = useState(defaultApplied)
+  const [appliedJobs, setAppliedJobs] = useState(DEFAULT_APPLIED_JOBS)
   const [appliedFilter, setAppliedFilter] = useState('all')
 
   // Resume state
-  const defaultResume = user?.resume || {
-    filename: user?.profileDetails?.cvFile || 'alex_developer_resume_2026.pdf',
-    uploadDate: 'July 24, 2026',
-    fileSize: '1.4 MB',
-    status: 'Verified'
-  }
-  const [resume, setResume] = useState(defaultResume)
+  const [resume, setResume] = useState({
+    filename: 'resume.pdf',
+    uploadDate: 'Not uploaded',
+    fileSize: '—',
+    status: 'Pending'
+  })
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
 
@@ -85,8 +80,30 @@ export function ProfilePage() {
   const [notification, setNotification] = useState('')
 
   // Bio state
-  const [bio, setBio] = useState(user?.bio || 'Full-stack software engineer passionate about modern web performance, cloud infrastructure, and AI systems.')
+  const [bio, setBio] = useState('')
   const [isEditingBio, setIsEditingBio] = useState(false)
+
+  // Sync user data from context into local state whenever user changes
+  useEffect(() => {
+    if (!user) return
+    // Sync skills: prefer profileDetails.skills, then user.skills, then empty
+    const contextSkills = user?.profileDetails?.skills || user?.skills || []
+    setSkills(contextSkills.length > 0 ? contextSkills : ['React', 'TypeScript', 'Node.js', 'CSS', 'PostgreSQL', 'AWS'])
+    // Sync bio
+    setBio(user?.bio || 'Full-stack software engineer passionate about modern web performance, cloud infrastructure, and AI systems.')
+    // Sync resume filename from profileDetails if available
+    if (user?.profileDetails?.cvFile) {
+      setResume(prev => ({
+        ...prev,
+        filename: user.profileDetails.cvFile,
+        status: 'Verified'
+      }))
+    }
+    // Sync applied jobs if persisted in user context
+    if (user?.appliedJobs?.length > 0) {
+      setAppliedJobs(user.appliedJobs)
+    }
+  }, [user])
 
   // Notification helper
   const showNotification = (msg) => {
@@ -750,6 +767,74 @@ export function ProfilePage() {
             </div>
 
           </div>
+
+          {/* Profile Setup Details Card (Academic / Career Info) */}
+          {user?.profileDetails && (
+            <div className="panel p-6 space-y-4">
+              <div className="border-b border-border/60 pb-3 flex items-center justify-between">
+                <h2 className="font-display text-base font-bold flex items-center gap-2">
+                  <GraduationCap size={18} className="text-primary" />
+                  Academic & Career Details
+                </h2>
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 capitalize">
+                  {user.profileType || 'Candidate'}
+                </span>
+              </div>
+
+              <div className="space-y-3 text-xs">
+                {user.profileDetails.degree && (
+                  <div className="flex justify-between items-center py-1 border-b border-border/40">
+                    <span className="text-textmuted font-medium">Degree / Course</span>
+                    <span className="font-semibold text-textmain">{user.profileDetails.degree}</span>
+                  </div>
+                )}
+                {user.profileDetails.college && (
+                  <div className="flex justify-between items-center py-1 border-b border-border/40">
+                    <span className="text-textmuted font-medium">College / University</span>
+                    <span className="font-semibold text-textmain">{user.profileDetails.college}</span>
+                  </div>
+                )}
+                {user.profileDetails.gradYear && (
+                  <div className="flex justify-between items-center py-1 border-b border-border/40">
+                    <span className="text-textmuted font-medium">Graduation Year</span>
+                    <span className="font-semibold text-textmain">{user.profileDetails.gradYear}</span>
+                  </div>
+                )}
+                {user.profileDetails.institutionName && (
+                  <div className="flex justify-between items-center py-1 border-b border-border/40">
+                    <span className="text-textmuted font-medium">Institution</span>
+                    <span className="font-semibold text-textmain">{user.profileDetails.institutionName}</span>
+                  </div>
+                )}
+                {user.profileDetails.branch && (
+                  <div className="flex justify-between items-center py-1 border-b border-border/40">
+                    <span className="text-textmuted font-medium">Branch / Major</span>
+                    <span className="font-semibold text-textmain">{user.profileDetails.branch}</span>
+                  </div>
+                )}
+                {user.profileDetails.pastJobDomain && (
+                  <div className="flex justify-between items-center py-1 border-b border-border/40">
+                    <span className="text-textmuted font-medium">Core Domain</span>
+                    <span className="font-semibold text-textmain">{user.profileDetails.pastJobDomain}</span>
+                  </div>
+                )}
+                {user.profileDetails.yearsOfExperience && (
+                  <div className="flex justify-between items-center py-1 border-b border-border/40">
+                    <span className="text-textmuted font-medium">Experience</span>
+                    <span className="font-semibold text-textmain">{user.profileDetails.yearsOfExperience} Years</span>
+                  </div>
+                )}
+                {user.profileDetails.kyc?.idType && (
+                  <div className="flex justify-between items-center py-1">
+                    <span className="text-textmuted font-medium">KYC Document</span>
+                    <span className="font-semibold text-success flex items-center gap-1">
+                      <CheckCircle2 size={12} /> {user.profileDetails.kyc.idType} Verified
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Quick Help & Recruiter Visibility Card */}
           <div className="panel p-5 bg-gradient-to-br from-primary/5 via-transparent to-transparent border-primary/20 space-y-3">

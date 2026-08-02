@@ -21,12 +21,6 @@ export function JobCard({ job }) {
             <div className="flex flex-wrap items-center gap-2 mb-2">
               <h3 className="font-semibold text-lg leading-tight">{job.title}</h3>
               {job.isRecent && <Badge tone="success">New</Badge>}
-              <Badge>{sourceText}</Badge>
-              {isN8n && (
-                <Badge tone="primary" title={`Scraped by n8n workflow: ${job.sourceWorkflow}`}>
-                  ⚡ n8n
-                </Badge>
-              )}
               {job.deadline && (() => {
                 const diffMs = new Date(job.deadline).getTime() - Date.now();
                 const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));

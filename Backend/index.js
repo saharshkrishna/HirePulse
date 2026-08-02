@@ -31,14 +31,12 @@ function mongoSanitizeMiddleware(req, _res, next) {
 
 const { getJobs, createJob, updateJob, deleteJob } = require('./controllers/jobController');
 const { getCompanies } = require('./controllers/companyController');
-const { getSourceHealth } = require('./controllers/healthController');
 const { signup, login, setupProfile, migratePasswords } = require('./controllers/authController');
 const { getStudents } = require('./controllers/adminController');
 const { ingestJobs, markJobsStale, getSources } = require('./controllers/n8nController');
 const apiKeyAuth = require('./middleware/apiKeyAuth');
 const { requireAuth, requireAdmin } = require('./middleware/authMiddleware');
 const Job = require('./models/Job');
-const SourceHealth = require('./models/SourceHealth');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -116,9 +114,8 @@ app.post('/api/jobs', requireAuth, requireAdmin, createJob);    // Admin only
 app.put('/api/jobs/:id', requireAuth, requireAdmin, updateJob); // Admin only
 app.delete('/api/jobs/:id', requireAuth, requireAdmin, deleteJob); // Admin only
 
-// ── Routes: Company & Source Health (public reads) ───────────────────────
+// ── Routes: Company (public reads) ───────────────────────────────────────
 app.get('/api/companies', getCompanies);
-app.get('/api/source-health', getSourceHealth);
 
 // ── Routes: Admin (JWT + admin role required) ────────────────────────────
 app.get('/api/admin/students', requireAuth, requireAdmin, getStudents);
@@ -134,25 +131,16 @@ app.get('/api/stats', async (req, res) => {
     const now = new Date();
     const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-    const [newJobsToday, totalActiveJobs, healthySources, totalSources] = await Promise.all([
+    const [newJobsToday, totalActiveJobs] = await Promise.all([
       Job.countDocuments({ createdAt: { $gte: oneDayAgo }, isActive: { $ne: false } }),
       Job.countDocuments({ isActive: { $ne: false } }),
-      SourceHealth.countDocuments({ status: 'Healthy' }),
-      SourceHealth.countDocuments(),
     ]);
-
-    const healthPct = totalSources > 0
-      ? Math.round((healthySources / totalSources) * 100) + '%'
-      : '—';
 
     res.json({
       newJobsToday,
       totalActiveJobs,
       highFitMatches: Math.round(totalActiveJobs * 0.23),
       watchedCompanies: 62,
-      healthySources: healthPct,
-      healthySourceCount: healthySources,
-      totalSources,
     });
   } catch (err) {
     console.error('Stats aggregation error:', err);

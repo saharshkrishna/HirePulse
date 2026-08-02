@@ -4,7 +4,6 @@ const bcrypt = require('bcryptjs');
 const { jobs, companies, sourceHealth } = require('./data');
 const Job = require('./models/Job');
 const Company = require('./models/Company');
-const SourceHealth = require('./models/SourceHealth');
 const User = require('./models/User');
 
 const seedDB = async () => {
@@ -15,7 +14,6 @@ const seedDB = async () => {
     // Clear existing collections
     await Job.deleteMany({});
     await Company.deleteMany({});
-    await SourceHealth.deleteMany({});
 
     // Seed demo user (used on the login page) — idempotent (upsert by email)
     const demoPassword = await bcrypt.hash('password123', 12);
@@ -66,12 +64,10 @@ const seedDB = async () => {
 
     await Job.insertMany(jobsWithRecent);
     await Company.insertMany(companiesToInsert);
-    await SourceHealth.insertMany(sourceHealth);
 
     console.log('Database seeded successfully!');
     console.log(`  ✔ ${jobsWithRecent.length} jobs`);
     console.log(`  ✔ ${companiesToInsert.length} companies`);
-    console.log(`  ✔ ${sourceHealth.length} source health records`);
     process.exit(0);
   } catch (error) {
     console.error('Error seeding database:', error);

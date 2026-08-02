@@ -99,6 +99,7 @@ export function AuthProvider({ children }) {
       role: data.user.role,
       profileType: data.user.profileType,
       isSetupCompleted: data.user.isSetupCompleted,
+      profileDetails: data.user.profileDetails || {},
     }
 
     // Store JWT in sessionStorage (cleared on tab close) and minimal profile in localStorage
@@ -162,6 +163,7 @@ export function AuthProvider({ children }) {
       role: data.user.role,
       profileType: data.user.profileType,
       isSetupCompleted: data.user.isSetupCompleted,
+      profileDetails: data.user.profileDetails || {},
     }
 
     sessionStorage.setItem(TOKEN_USER, data.token)
@@ -191,6 +193,7 @@ export function AuthProvider({ children }) {
       ...user,
       profileType: data.user.profileType,
       isSetupCompleted: data.user.isSetupCompleted,
+      profileDetails: data.user.profileDetails,
     }
 
     localStorage.setItem(STORAGE_USER, JSON.stringify(updatedUser))
@@ -203,7 +206,7 @@ export function AuthProvider({ children }) {
     if (!user) return
 
     // Only allow updating safe display fields
-    const allowedFields = ['skills', 'bio', 'location', 'linkedinUrl', 'githubUrl', 'portfolioUrl']
+    const allowedFields = ['skills', 'bio', 'location', 'linkedinUrl', 'githubUrl', 'portfolioUrl', 'appliedJobs', 'resume']
     const safeUpdate = Object.fromEntries(
       Object.entries(updatedFields).filter(([k]) => allowedFields.includes(k))
     )

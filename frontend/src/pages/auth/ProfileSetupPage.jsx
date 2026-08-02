@@ -44,6 +44,28 @@ export function ProfileSetupPage() {
     yearsOfExperience: '2',
   })
 
+  // Technical Skills state
+  const [skills, setSkills] = useState(['React', 'TypeScript', 'Node.js'])
+  const [skillInput, setSkillInput] = useState('')
+
+  const popularSkills = [
+    'React', 'TypeScript', 'Node.js', 'Python', 'AWS', 'Docker',
+    'PostgreSQL', 'TailwindCSS', 'GraphQL', 'Next.js', 'Go', 'Kubernetes',
+    'Java', 'MongoDB', 'Redis', 'PyTorch', 'Kafka', 'System Design'
+  ]
+
+  const addSkill = (skillToAdd) => {
+    const trimmed = skillToAdd.trim()
+    if (!trimmed) return
+    if (skills.some(s => s.toLowerCase() === trimmed.toLowerCase())) return
+    setSkills([...skills, trimmed])
+    setSkillInput('')
+  }
+
+  const removeSkill = (skillToRemove) => {
+    setSkills(skills.filter(s => s !== skillToRemove))
+  }
+
   const [formError, setFormError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -96,6 +118,11 @@ export function ProfileSetupPage() {
     setFormError('')
 
     // Validation
+    if (skills.length === 0) {
+      setFormError('Please add at least one technical skill to your profile.')
+      return
+    }
+
     if (profileType === 'student') {
       const { institutionName, universityName, branch } = studentDetails
       if (!institutionName || !universityName || !branch) {
@@ -140,11 +167,13 @@ export function ProfileSetupPage() {
       if (profileType === 'student') {
         compiledDetails = {
           ...studentDetails,
+          skills,
           studentIdFile: studentIdFile.name,
         }
       } else if (profileType === 'fresher') {
         compiledDetails = {
           ...educationDetails,
+          skills,
           cvFile: cvFile.name,
           kyc: { ...kycDetails, kycFile: kycFile.name },
         }
@@ -152,6 +181,7 @@ export function ProfileSetupPage() {
         compiledDetails = {
           ...educationDetails,
           ...experienceDetails,
+          skills,
           cvFile: cvFile.name,
           kyc: { ...kycDetails, kycFile: kycFile.name },
         }
@@ -662,6 +692,88 @@ export function ProfileSetupPage() {
             })}
           </div>
         )}
+
+        {/* --- TECHNICAL SKILLS SECTION (COMMON TO ALL PROFILE TYPES) --- */}
+        <div className="border-t border-border/60 my-4 pt-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="font-display font-semibold text-sm text-primary uppercase tracking-wide">Technical Skills</h3>
+            <span className="text-xs text-textmuted">{skills.length} skills selected</span>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Type a skill (e.g. React, Python, AWS) and press Enter"
+                className="input flex-1"
+                value={skillInput}
+                onChange={(e) => setSkillInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    addSkill(skillInput)
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => addSkill(skillInput)}
+                className="btn btn-primary px-4 bg-primary text-white font-semibold rounded-xl"
+              >
+                Add
+              </button>
+            </div>
+
+            {/* Selected Skills Tags */}
+            <div className="flex flex-wrap gap-2 min-h-[40px] p-3 rounded-xl bg-surface-2/60 border border-border/80 items-center">
+              {skills.length === 0 ? (
+                <span className="text-xs text-textmuted italic">No skills added yet. Select from below or type custom skills above.</span>
+              ) : (
+                skills.map((skill) => (
+                  <span
+                    key={skill}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20"
+                  >
+                    {skill}
+                    <button
+                      type="button"
+                      onClick={() => removeSkill(skill)}
+                      className="hover:bg-primary/20 rounded-full p-0.5 transition-colors"
+                      aria-label={`Remove ${skill}`}
+                    >
+                      ✕
+                    </button>
+                  </span>
+                ))
+              )}
+            </div>
+
+            {/* Quick Add Popular Skills */}
+            <div className="space-y-1 pt-1">
+              <span className="text-xs text-textmuted font-medium">Quick add popular skills:</span>
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {popularSkills.map((popSkill) => {
+                  const isAdded = skills.some(s => s.toLowerCase() === popSkill.toLowerCase())
+                  return (
+                    <button
+                      key={popSkill}
+                      type="button"
+                      disabled={isAdded}
+                      onClick={() => addSkill(popSkill)}
+                      className={`text-xs px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
+                        isAdded
+                          ? 'bg-surface-2 text-textmuted border-border/40 opacity-50 cursor-not-allowed'
+                          : 'bg-surface hover:bg-primary/10 hover:border-primary/40 text-textmain border-border'
+                      }`}
+                    >
+                      + {popSkill}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Buttons */}
         <div className="flex justify-between items-center pt-6 border-t border-border">

@@ -15,7 +15,7 @@ exports.getJobs = async (req, res) => {
       experience,  // Experience (fresher, experienced, mid, senior)
       sort,        // Sort options ('deadline', 'match', 'recent', 'company')
       page = 1,
-      limit = 10
+      limit = 10,
     } = req.query;
 
     const now = new Date();
