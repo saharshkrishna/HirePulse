@@ -1,4 +1,4 @@
-import { BookmarkPlus } from 'lucide-react'
+import { BookmarkPlus, ExternalLink } from 'lucide-react'
 import { Badge, Chip, LogoMark, MatchBar } from '../ui'
 import { initials } from '../../utils/helpers'
 
@@ -7,7 +7,9 @@ export function JobCard({ job }) {
   const matchScore = job.match ?? 90
   const tagsList = Array.isArray(job.tags) ? job.tags : []
   const postedText = job.posted || (job.createdAt ? 'Recently added' : 'Active')
-  const sourceText = job.source || 'HirePulse'
+  const sourceText = job.source || job.sourceWorkflow || 'HirePulse'
+  const hasUrl = job.url && job.url.trim()
+  const isN8n = !!job.sourceWorkflow
 
   return (
     <article className="job-card">
@@ -20,6 +22,25 @@ export function JobCard({ job }) {
               <h3 className="font-semibold text-lg leading-tight">{job.title}</h3>
               {job.isRecent && <Badge tone="success">New</Badge>}
               <Badge>{sourceText}</Badge>
+              {isN8n && (
+                <Badge tone="primary" title={`Scraped by n8n workflow: ${job.sourceWorkflow}`}>
+                  ⚡ n8n
+                </Badge>
+              )}
+              {job.deadline && (() => {
+                const diffMs = new Date(job.deadline).getTime() - Date.now();
+                const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+                if (diffDays <= 0) {
+                  return <Badge tone="warning">Expiring today</Badge>;
+                } else if (diffDays <= 3) {
+                  return <Badge tone="warning">Expires in {diffDays}d</Badge>;
+                } else {
+                  return <Badge tone="primary">Deadline: {new Date(job.deadline).toLocaleDateString()}</Badge>;
+                }
+              })()}
+              {!job.isActive && (
+                <Badge tone="warning">Inactive</Badge>
+              )}
             </div>
             <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-textmuted">
               <span>{job.company}</span><span>•</span>
@@ -37,13 +58,24 @@ export function JobCard({ job }) {
         <div className="md:w-[220px] flex flex-col gap-3">
           <div className="surface-sub rounded-2xl p-3">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-textmuted">AI match</span>
+              <span className="text-sm text-textmuted">Role match</span>
               <span className="font-semibold">{matchScore}%</span>
             </div>
             <MatchBar value={matchScore} />
           </div>
           <div className="flex gap-2">
-            <button className="btn btn-primary flex-1">Apply</button>
+            {hasUrl ? (
+              <a
+                href={job.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-primary flex-1 flex items-center justify-center gap-1"
+              >
+                Apply <ExternalLink size={14} />
+              </a>
+            ) : (
+              <button className="btn btn-primary flex-1">Apply</button>
+            )}
             <button className="btn" aria-label="Save job"><BookmarkPlus size={18} /></button>
           </div>
         </div>
@@ -51,3 +83,4 @@ export function JobCard({ job }) {
     </article>
   )
 }
+

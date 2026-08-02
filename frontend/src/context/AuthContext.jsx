@@ -4,70 +4,71 @@ const AuthContext = createContext()
 
 const STORAGE_USER = 'hp_user_session'
 const STORAGE_ADMIN = 'hp_admin_session'
-const API_BASE_URL = 'http://localhost:5000/api'
+const TOKEN_USER = 'hp_user_token'
+const TOKEN_ADMIN = 'hp_admin_token'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'
 
 /**
- * Helper to check if current URL hash belongs to Admin portal or User portal.
+ * Returns 'admin' if the current URL hash is an admin route, 'user' otherwise.
  */
 function getScopeFromHash(hash = '') {
   return hash.startsWith('#/admin') ? 'admin' : 'user'
+}
+
+/**
+ * Builds Authorization header from the stored JWT for the given scope.
+ */
+function getAuthHeaders(scope = 'user') {
+  const tokenKey = scope === 'admin' ? TOKEN_ADMIN : TOKEN_USER
+  const token = sessionStorage.getItem(tokenKey)
+  return token ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' }
+}
+
+/**
+ * Returns the stored JWT for the current scope. Used by api.js callers.
+ */
+export function getToken(scope = 'user') {
+  return sessionStorage.getItem(scope === 'admin' ? TOKEN_ADMIN : TOKEN_USER)
 }
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  // Sync state with active role scope on mount and on hash changes
+  // Sync session state with active route scope on mount and hashchange
   useEffect(() => {
     const syncSession = () => {
-      // Legacy migration from old single key if present
-      const legacyUserStr = localStorage.getItem('hp_user')
-      if (legacyUserStr) {
+      // Legacy migration: move hp_user (old single key) to new scoped keys
+      const legacyStr = localStorage.getItem('hp_user')
+      if (legacyStr) {
         try {
-          const parsed = JSON.parse(legacyUserStr)
-          if (parsed.role === 'admin') {
-            localStorage.setItem(STORAGE_ADMIN, JSON.stringify(parsed))
-          } else {
-            localStorage.setItem(STORAGE_USER, JSON.stringify(parsed))
-          }
-        } catch (e) {
-          // ignore invalid legacy JSON
-        }
+          const parsed = JSON.parse(legacyStr)
+          const legacyKey = parsed.role === 'admin' ? STORAGE_ADMIN : STORAGE_USER
+          localStorage.setItem(legacyKey, JSON.stringify(parsed))
+        } catch (_) { /* ignore invalid JSON */ }
         localStorage.removeItem('hp_user')
       }
 
       const scope = getScopeFromHash(window.location.hash)
-      if (scope === 'admin') {
-        const storedAdmin = localStorage.getItem(STORAGE_ADMIN)
-        if (storedAdmin) {
-          try {
-            const parsedAdmin = JSON.parse(storedAdmin)
-            if (parsedAdmin && parsedAdmin.role === 'admin') {
-              setUser(parsedAdmin)
-              setLoading(false)
-              return
-            }
-          } catch (e) {
-            localStorage.removeItem(STORAGE_ADMIN)
+      const storageKey = scope === 'admin' ? STORAGE_ADMIN : STORAGE_USER
+      const tokenKey = scope === 'admin' ? TOKEN_ADMIN : TOKEN_USER
+      const stored = localStorage.getItem(storageKey)
+      const token = sessionStorage.getItem(tokenKey)
+
+      if (stored && token) {
+        try {
+          const parsed = JSON.parse(stored)
+          if (parsed && (scope !== 'admin' || parsed.role === 'admin')) {
+            setUser(parsed)
+            setLoading(false)
+            return
           }
+        } catch (_) {
+          localStorage.removeItem(storageKey)
         }
-        setUser(null)
-      } else {
-        const storedUser = localStorage.getItem(STORAGE_USER)
-        if (storedUser) {
-          try {
-            const parsedUser = JSON.parse(storedUser)
-            if (parsedUser) {
-              setUser(parsedUser)
-              setLoading(false)
-              return
-            }
-          } catch (e) {
-            localStorage.removeItem(STORAGE_USER)
-          }
-        }
-        setUser(null)
       }
+
+      setUser(null)
       setLoading(false)
     }
 
@@ -76,222 +77,170 @@ export function AuthProvider({ children }) {
     return () => window.removeEventListener('hashchange', syncSession)
   }, [])
 
-  // Action: Candidate User Login
+  // ── Action: Candidate User Login ────────────────────────────────────────
   const loginUser = async (email, password) => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      })
+    const res = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    })
 
-      if (res.ok) {
-        const data = await res.json()
-        setUser(data.user)
-        localStorage.setItem(STORAGE_USER, JSON.stringify(data.user))
-        return data.user
-      } else {
-        const errData = await res.json()
-        throw new Error(errData.error || 'Login failed')
-      }
-    } catch (err) {
-      if (err.message && err.message !== 'Failed to fetch') {
-        throw err
-      }
-      
-      console.warn('Backend login failed or server offline. Using local frontend fallback:', err)
-      const savedUsers = JSON.parse(localStorage.getItem('hp_registered_users') || '[]')
-      const existing = savedUsers.find((u) => u.email.toLowerCase() === email.toLowerCase())
+    const data = await res.json()
 
-      let loggedUser
-      if (existing) {
-        loggedUser = { ...existing }
-      } else {
-        loggedUser = {
-          name: email.split('@')[0],
-          email,
-          phone: '1234567890',
-          role: 'user',
-          profileType: null,
-          profileDetails: null,
-          isSetupCompleted: false,
-        }
-        
-        savedUsers.push(loggedUser)
-        localStorage.setItem('hp_registered_users', JSON.stringify(savedUsers))
-      }
-
-      setUser(loggedUser)
-      localStorage.setItem(STORAGE_USER, JSON.stringify(loggedUser))
-      return loggedUser
+    if (!res.ok) {
+      throw new Error(data.error || 'Login failed')
     }
+
+    const safeUser = {
+      _id: data.user._id,
+      name: data.user.name,
+      email: data.user.email,
+      phone: data.user.phone,
+      role: data.user.role,
+      profileType: data.user.profileType,
+      isSetupCompleted: data.user.isSetupCompleted,
+    }
+
+    // Store JWT in sessionStorage (cleared on tab close) and minimal profile in localStorage
+    sessionStorage.setItem(TOKEN_USER, data.token)
+    localStorage.setItem(STORAGE_USER, JSON.stringify(safeUser))
+    setUser(safeUser)
+    return safeUser
   }
 
-  // Action: System Admin Login
+  // ── Action: System Admin Login ───────────────────────────────────────────
   const loginAdmin = async (email, password) => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      })
+    // SECURITY: No offline fallback for admin — must reach backend to authenticate
+    const res = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    })
 
-      if (res.ok) {
-        const data = await res.json()
-        if (data.user.role !== 'admin') {
-          throw new Error('This account does not have administrative privileges.')
-        }
-        setUser(data.user)
-        localStorage.setItem(STORAGE_ADMIN, JSON.stringify(data.user))
-        return data.user
-      } else {
-        const errData = await res.json()
-        throw new Error(errData.error || 'Admin login failed')
-      }
-    } catch (err) {
-      if (err.message && err.message !== 'Failed to fetch') {
-        throw err
-      }
+    const data = await res.json()
 
-      console.warn('Backend admin login failed or server offline. Using local fallback:', err)
-      const loggedAdmin = {
-        name: 'System Admin',
-        email,
-        role: 'admin',
-        isSetupCompleted: true,
-      }
-      setUser(loggedAdmin)
-      localStorage.setItem(STORAGE_ADMIN, JSON.stringify(loggedAdmin))
-      return loggedAdmin
+    if (!res.ok) {
+      throw new Error(data.error || 'Admin login failed')
     }
+
+    if (data.user.role !== 'admin') {
+      throw new Error('This account does not have administrative privileges.')
+    }
+
+    const safeAdmin = {
+      name: data.user.name,
+      email: data.user.email,
+      role: 'admin',
+      isSetupCompleted: true,
+    }
+
+    sessionStorage.setItem(TOKEN_ADMIN, data.token)
+    localStorage.setItem(STORAGE_ADMIN, JSON.stringify(safeAdmin))
+    setUser(safeAdmin)
+    return safeAdmin
   }
 
-  // Action: User Signup
+  // ── Action: User Signup ──────────────────────────────────────────────────
   const signupUser = async ({ name, email, phone, password }) => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/auth/signup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, phone, password })
-      })
+    const res = await fetch(`${API_BASE_URL}/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, phone, password })
+    })
 
-      if (res.ok) {
-        const data = await res.json()
-        setUser(data.user)
-        localStorage.setItem(STORAGE_USER, JSON.stringify(data.user))
-        return data.user
-      } else {
-        const errData = await res.json()
-        throw new Error(errData.error || 'Signup failed')
-      }
-    } catch (err) {
-      if (err.message && err.message !== 'Failed to fetch') {
-        throw err
-      }
+    const data = await res.json()
 
-      console.warn('Backend signup failed or server offline. Using local fallback:', err)
-      const newUser = {
-        name,
-        email,
-        phone,
-        role: 'user',
-        profileType: null,
-        profileDetails: null,
-        isSetupCompleted: false,
-      }
-
-      const savedUsers = JSON.parse(localStorage.getItem('hp_registered_users') || '[]')
-      const existingIndex = savedUsers.findIndex((u) => u.email.toLowerCase() === email.toLowerCase())
-      if (existingIndex > -1) {
-        savedUsers[existingIndex] = newUser
-      } else {
-        savedUsers.push(newUser)
-      }
-      localStorage.setItem('hp_registered_users', JSON.stringify(savedUsers))
-
-      setUser(newUser)
-      localStorage.setItem(STORAGE_USER, JSON.stringify(newUser))
-      return newUser
+    if (!res.ok) {
+      throw new Error(data.error || 'Signup failed')
     }
+
+    const safeUser = {
+      _id: data.user._id,
+      name: data.user.name,
+      email: data.user.email,
+      phone: data.user.phone,
+      role: data.user.role,
+      profileType: data.user.profileType,
+      isSetupCompleted: data.user.isSetupCompleted,
+    }
+
+    sessionStorage.setItem(TOKEN_USER, data.token)
+    localStorage.setItem(STORAGE_USER, JSON.stringify(safeUser))
+    setUser(safeUser)
+    return safeUser
   }
 
-  // Action: Complete Profile Setup
+  // ── Action: Complete Profile Setup ──────────────────────────────────────
   const completeProfileSetup = async (profileType, details) => {
     if (!user) return
 
-    try {
-      const res = await fetch(`${API_BASE_URL}/auth/setup-profile`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user._id || user.id,
-          profileType,
-          profileDetails: details
-        })
-      })
+    const res = await fetch(`${API_BASE_URL}/auth/setup-profile`, {
+      method: 'POST',
+      headers: getAuthHeaders('user'),
+      body: JSON.stringify({ profileType, profileDetails: details })
+      // NOTE: userId is now taken from the JWT on the server side
+    })
 
-      if (res.ok) {
-        const data = await res.json()
-        setUser(data.user)
-        localStorage.setItem(STORAGE_USER, JSON.stringify(data.user))
-        return data.user
-      } else {
-        const errData = await res.json()
-        throw new Error(errData.error || 'Profile setup failed')
-      }
-    } catch (err) {
-      if (err.message && err.message !== 'Failed to fetch') {
-        throw err
-      }
+    const data = await res.json()
 
-      console.warn('Backend profile setup failed or server offline. Using local fallback:', err)
-      const updatedUser = {
-        ...user,
-        profileType,
-        profileDetails: details,
-        isSetupCompleted: true,
-      }
-
-      const savedUsers = JSON.parse(localStorage.getItem('hp_registered_users') || '[]')
-      const userIdx = savedUsers.findIndex((u) => u.email.toLowerCase() === user.email.toLowerCase())
-      if (userIdx > -1) {
-        savedUsers[userIdx] = updatedUser
-        localStorage.setItem('hp_registered_users', JSON.stringify(savedUsers))
-      }
-
-      setUser(updatedUser)
-      localStorage.setItem(STORAGE_USER, JSON.stringify(updatedUser))
-      return updatedUser
+    if (!res.ok) {
+      throw new Error(data.error || 'Profile setup failed')
     }
-  }
 
-  // Action: Profile Update
-  const updateUserProfile = (updatedFields) => {
-    if (!user) return
     const updatedUser = {
       ...user,
-      ...updatedFields,
+      profileType: data.user.profileType,
+      isSetupCompleted: data.user.isSetupCompleted,
     }
 
-    const storageKey = user.role === 'admin' ? STORAGE_ADMIN : STORAGE_USER
+    localStorage.setItem(STORAGE_USER, JSON.stringify(updatedUser))
     setUser(updatedUser)
-    localStorage.setItem(storageKey, JSON.stringify(updatedUser))
     return updatedUser
   }
 
-  // Action: Logout
+  // ── Action: Profile Update (local only, non-sensitive fields) ────────────
+  const updateUserProfile = (updatedFields) => {
+    if (!user) return
+
+    // Only allow updating safe display fields
+    const allowedFields = ['skills', 'bio', 'location', 'linkedinUrl', 'githubUrl', 'portfolioUrl']
+    const safeUpdate = Object.fromEntries(
+      Object.entries(updatedFields).filter(([k]) => allowedFields.includes(k))
+    )
+
+    const updatedUser = { ...user, ...safeUpdate }
+    const storageKey = user.role === 'admin' ? STORAGE_ADMIN : STORAGE_USER
+    localStorage.setItem(storageKey, JSON.stringify(updatedUser))
+    setUser(updatedUser)
+    return updatedUser
+  }
+
+  // ── Action: Logout ───────────────────────────────────────────────────────
   const logout = () => {
     const scope = getScopeFromHash(window.location.hash) || (user?.role === 'admin' ? 'admin' : 'user')
     if (scope === 'admin' || user?.role === 'admin') {
       localStorage.removeItem(STORAGE_ADMIN)
+      sessionStorage.removeItem(TOKEN_ADMIN)
     } else {
       localStorage.removeItem(STORAGE_USER)
+      sessionStorage.removeItem(TOKEN_USER)
     }
     setUser(null)
   }
 
+  /**
+   * Expose getAuthHeaders so other components can attach Authorization headers.
+   * scope: 'user' | 'admin'
+   */
+  const getHeaders = (scope) => getAuthHeaders(scope || (user?.role === 'admin' ? 'admin' : 'user'))
+
   return (
-    <AuthContext.Provider value={{ user, loading, loginUser, loginAdmin, signupUser, completeProfileSetup, updateUserProfile, logout }}>
+    <AuthContext.Provider value={{
+      user, loading,
+      loginUser, loginAdmin, signupUser,
+      completeProfileSetup, updateUserProfile,
+      logout, getHeaders
+    }}>
       {children}
     </AuthContext.Provider>
   )

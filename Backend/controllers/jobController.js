@@ -1,7 +1,7 @@
 const Job = require('../models/Job');
 const { jobs: mockJobs } = require('../data');
 
-// GET /api/jobs (with filtering and search parameters)
+// GET /api/jobs (with filtering, pagination, deadline sorting and expired filtering)
 exports.getJobs = async (req, res) => {
   try {
     const { 
@@ -13,10 +13,23 @@ exports.getJobs = async (req, res) => {
       type,        // Type (remote, onsite, hybrid)
       remote,      // Remote filter alias
       experience,  // Experience (fresher, experienced, mid, senior)
-      sort         // Sort options (e.g. 'date' for newest, 'match')
+      sort,        // Sort options ('deadline', 'match', 'recent', 'company')
+      page = 1,
+      limit = 10
     } = req.query;
 
-    const conditions = [];
+    const now = new Date();
+    // Exclude jobs whose deadline has passed (deadline < current date)
+    const conditions = [
+      {
+        $or: [
+          { deadline: { $gt: now } },
+          { deadline: null },
+          { deadline: { $exists: false } }
+        ]
+      },
+      { isActive: { $ne: false } }
+    ];
 
     // 1. Name/Query Search (Matches title, company, or tags)
     if (query && query.trim() !== '' && query !== 'undefined') {
@@ -62,9 +75,40 @@ exports.getJobs = async (req, res) => {
       conditions.push({ experience: { $regex: experience, $options: 'i' } });
     }
 
-    const filter = conditions.length > 0 ? { $and: conditions } : {};
+    const filter = { $and: conditions };
 
-    let jobs = await Job.find(filter).sort({ createdAt: -1 });
+    // Primary sorting: Jobs near expiration first (non-null deadline ascending), then null deadlines
+    let sortObj = {};
+    if (sort === 'match') {
+      sortObj = { match: -1 };
+    } else if (sort === 'recent') {
+      sortObj = { createdAt: -1 };
+    } else if (sort === 'company') {
+      sortObj = { company: 1 };
+    }
+
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 10;
+    const skip = (pageNum - 1) * limitNum;
+
+    const totalJobsCount = await Job.countDocuments(filter);
+    
+    // Perform custom query/sort: jobs with non-null deadline sorted ascending by deadline, followed by jobs without deadline
+    let jobs = await Job.aggregate([
+      { $match: filter },
+      {
+        $addFields: {
+          hasDeadline: { $cond: [{ $ifNull: ['$deadline', false] }, 0, 1] }
+        }
+      },
+      {
+        $sort: Object.keys(sortObj).length > 0 
+          ? { hasDeadline: 1, deadline: 1, ...sortObj }
+          : { hasDeadline: 1, deadline: 1, createdAt: -1 }
+      },
+      { $skip: skip },
+      { $limit: limitNum }
+    ]);
 
     // If database collection is completely empty, return mockJobs
     const totalCount = await Job.countDocuments();
@@ -80,11 +124,22 @@ exports.getJobs = async (req, res) => {
       return doc;
     });
 
-    res.status(200).json(formattedJobs);
+    res.status(200).json({
+      jobs: formattedJobs,
+      pagination: {
+        total: totalJobsCount,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(totalJobsCount / limitNum) || 1
+      }
+    });
   } catch (error) {
     console.error('Error fetching jobs from database:', error);
-    // If DB query fails, fallback to mock data
-    res.status(200).json(mockJobs);
+    // If DB query fails, fallback to mock data structure
+    res.status(200).json({
+      jobs: mockJobs,
+      pagination: { total: mockJobs.length, page: 1, limit: 10, totalPages: 1 }
+    });
   }
 };
 

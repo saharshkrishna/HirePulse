@@ -33,6 +33,7 @@ export function JobFilters({ role, onRole, remote, onRemote, experience, onExper
       </select>
 
       <select id="filter-sort" className="select" value={sortBy} onChange={(e) => onSortBy(e.target.value)}>
+        <option value="deadline">Expiring soonest</option>
         <option value="match">Sort by match</option>
         <option value="recent">Sort by recent</option>
         <option value="company">Sort by company</option>

@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react'
 import { fetchJobs } from '../utils/api'
 
 /**
- * Encapsulates job-feed filter state (role, remote, experience, sortBy).
+ * Encapsulates job-feed filter state (role, remote, experience, sortBy, page).
  * Accepts an external `query` string so the global Topbar search drives filtering.
- * Includes a 300ms debounce on input queries to prevent API thrashing.
+ * Includes a 250ms debounce on input queries to prevent API thrashing.
  *
  * @param {string} query - Search string owned by App-level state.
  */
@@ -12,11 +12,19 @@ export function useJobFilter(query = '') {
   const [role, setRole] = useState('all')
   const [remote, setRemote] = useState('all')
   const [experience, setExperience] = useState('all')
-  const [sortBy, setSortBy] = useState('match')
+  const [sortBy, setSortBy] = useState('deadline') // Default to deadline (expiring soonest first)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalJobs, setTotalJobs] = useState(0)
   const [debouncedQuery, setDebouncedQuery] = useState(query)
   const [filteredJobs, setFilteredJobs] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+
+  // Reset to page 1 whenever filters change
+  useEffect(() => {
+    setPage(1)
+  }, [debouncedQuery, role, remote, experience, sortBy])
 
   // Debounce external search query changes
   useEffect(() => {
@@ -31,21 +39,25 @@ export function useJobFilter(query = '') {
     const loadJobs = async () => {
       setLoading(true)
       try {
-        const data = await fetchJobs({
+        const response = await fetchJobs({
           role: role !== 'all' ? role : undefined,
           remote: remote !== 'all' ? remote : undefined,
           experience: experience !== 'all' ? experience : undefined,
-          query: debouncedQuery.trim() || undefined
+          query: debouncedQuery.trim() || undefined,
+          sort: sortBy,
+          page,
+          limit: 10
         })
         
         if (isCancelled) return
 
-        const sorted = [...(data || [])]
-        if (sortBy === 'match') sorted.sort((a, b) => (b.match || 0) - (a.match || 0))
-        if (sortBy === 'recent') sorted.sort((a, b) => (a.freshness || 0) - (b.freshness || 0))
-        if (sortBy === 'company') sorted.sort((a, b) => (a.company || '').localeCompare(b.company || ''))
-        
-        setFilteredJobs(sorted)
+        // Handle both new paginated response format { jobs, pagination } and legacy array fallback
+        const jobsList = Array.isArray(response) ? response : (response.jobs || [])
+        const pagination = response.pagination || {}
+
+        setFilteredJobs(jobsList)
+        setTotalPages(pagination.totalPages || 1)
+        setTotalJobs(pagination.total || jobsList.length)
         setError(null)
       } catch (err) {
         if (!isCancelled) setError(err.message)
@@ -56,15 +68,19 @@ export function useJobFilter(query = '') {
 
     loadJobs()
     return () => { isCancelled = true }
-  }, [debouncedQuery, role, remote, experience, sortBy])
+  }, [debouncedQuery, role, remote, experience, sortBy, page])
 
   return {
     role, setRole,
     remote, setRemote,
     experience, setExperience,
     sortBy, setSortBy,
+    page, setPage,
+    totalPages,
+    totalJobs,
     filteredJobs,
     loading,
     error
   }
 }
+

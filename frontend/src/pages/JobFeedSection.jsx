@@ -1,11 +1,11 @@
-import { SearchX } from 'lucide-react'
+import { SearchX, ChevronLeft, ChevronRight } from 'lucide-react'
 import { LogoMark, Panel } from '../components/ui'
 import { JobCard } from '../components/jobs/JobCard'
 import { JobFilters } from '../components/jobs/JobFilters'
 import { useJobFilter } from '../hooks/useJobFilter'
 
 /**
- * Full job-feed panel including filters and the scrollable list of cards.
+ * Full job-feed panel including filters, pagination, and the scrollable list of cards.
  * @param {{ query: string }} props - Global search query from App-level state.
  */
 export function JobFeedSection({ query }) {
@@ -14,6 +14,9 @@ export function JobFeedSection({ query }) {
     remote, setRemote,
     experience, setExperience,
     sortBy, setSortBy,
+    page, setPage,
+    totalPages,
+    totalJobs,
     filteredJobs,
     loading,
     error
@@ -24,7 +27,9 @@ export function JobFeedSection({ query }) {
       <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 mb-5">
         <div>
           <h2 className="font-display text-xl font-semibold">Job feed</h2>
-          <p className="text-sm text-textmuted">Normalized and deduplicated opportunities ranked by fit.</p>
+          <p className="text-sm text-textmuted">
+            Normalized and deduplicated opportunities ranked by expiration and fit ({totalJobs} active).
+          </p>
         </div>
         <JobFilters
           role={role} onRole={setRole}
@@ -57,11 +62,41 @@ export function JobFeedSection({ query }) {
         ) : (
           <div className="surface-sub rounded-3xl p-8 text-center">
             <LogoMark className="mx-auto mb-4"><SearchX size={18} /></LogoMark>
-            <h3 className="font-semibold text-lg">No jobs match the current filters</h3>
-            <p className="text-sm mt-2 text-textmuted">Adjust role, location, or search terms to widen the feed.</p>
+            <h3 className="font-semibold text-lg">No active jobs match the current filters</h3>
+            <p className="text-sm mt-2 text-textmuted">Expired jobs are automatically hidden. Adjust role, location, or search terms to widen the feed.</p>
           </div>
         )}
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-6 mt-6 border-t border-border/60">
+          <button
+            type="button"
+            className="btn flex items-center gap-1 text-sm font-semibold disabled:opacity-40 cursor-pointer"
+            onClick={() => setPage((p) => Math.max(p - 1, 1))}
+            disabled={page <= 1 || loading}
+          >
+            <ChevronLeft size={16} />
+            Previous
+          </button>
+
+          <span className="text-xs text-textmuted font-medium">
+            Page <strong className="text-textmain font-semibold">{page}</strong> of <strong className="text-textmain font-semibold">{totalPages}</strong>
+          </span>
+
+          <button
+            type="button"
+            className="btn flex items-center gap-1 text-sm font-semibold disabled:opacity-40 cursor-pointer"
+            onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
+            disabled={page >= totalPages || loading}
+          >
+            Next
+            <ChevronRight size={16} />
+          </button>
+        </div>
+      )}
     </Panel>
   )
 }
+
