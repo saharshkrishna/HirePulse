@@ -54,7 +54,8 @@ const DEFAULT_APPLIED_JOBS = [
 ]
 
 export function ProfilePage() {
-  const { user, updateUserProfile } = useAuth()
+  const { user, updateUserProfile, updateProfileDB } = useAuth()
+  const [isSaving, setIsSaving] = useState(false)
   
   // Skills state — initialized from context, synced via useEffect when user loads
   const [skills, setSkills] = useState([])
@@ -83,14 +84,18 @@ export function ProfilePage() {
   const [bio, setBio] = useState('')
   const [isEditingBio, setIsEditingBio] = useState(false)
 
-  // Sync user data from context into local state whenever user changes
+  // Sync user data from context into local state on initial load only
   useEffect(() => {
     if (!user) return
-    // Sync skills: prefer profileDetails.skills, then user.skills, then empty
+    // Only seed skills from DB if local state is empty (initial mount)
     const contextSkills = user?.profileDetails?.skills || user?.skills || []
-    setSkills(contextSkills.length > 0 ? contextSkills : ['React', 'TypeScript', 'Node.js', 'CSS', 'PostgreSQL', 'AWS'])
-    // Sync bio
-    setBio(user?.bio || 'Full-stack software engineer passionate about modern web performance, cloud infrastructure, and AI systems.')
+    setSkills(prev =>
+      prev.length === 0
+        ? (contextSkills.length > 0 ? contextSkills : [])
+        : prev
+    )
+    // Sync bio if not yet set
+    setBio(prev => prev || user?.profileDetails?.bio || user?.bio || '')
     // Sync resume filename from profileDetails if available
     if (user?.profileDetails?.cvFile) {
       setResume(prev => ({
@@ -100,8 +105,9 @@ export function ProfilePage() {
       }))
     }
     // Sync applied jobs if persisted in user context
-    if (user?.appliedJobs?.length > 0) {
-      setAppliedJobs(user.appliedJobs)
+    const contextApplied = user?.appliedJobs
+    if (contextApplied && Array.isArray(contextApplied) && contextApplied.length > 0) {
+      setAppliedJobs(contextApplied)
     }
   }, [user])
 
@@ -152,7 +158,7 @@ export function ProfilePage() {
   }, [skills, appliedJobs])
 
   // Skill Handlers
-  const handleAddSkill = (skillToAdd) => {
+  const handleAddSkill = async (skillToAdd) => {
     const trimmed = skillToAdd.trim()
     if (!trimmed) return
 
@@ -162,21 +168,40 @@ export function ProfilePage() {
     }
 
     const updated = [...skills, trimmed]
-    setSkills(updated)
-    updateUserProfile({ skills: updated })
+    setSkills(updated)           // optimistic update
     setNewSkillInput('')
-    showNotification(`Added "${trimmed}" to your skills. Job match scores updated!`)
+
+    try {
+      setIsSaving(true)
+      await updateProfileDB({ skills: updated })
+      showNotification(`✓ Added "${trimmed}" — saved to your profile!`)
+    } catch (err) {
+      // Rollback on failure
+      setSkills(skills)
+      showNotification(`Failed to save: ${err.message}`)
+    } finally {
+      setIsSaving(false)
+    }
   }
 
-  const handleRemoveSkill = (skillToRemove) => {
+  const handleRemoveSkill = async (skillToRemove) => {
     const updated = skills.filter(s => s !== skillToRemove)
-    setSkills(updated)
-    updateUserProfile({ skills: updated })
-    showNotification(`Removed "${skillToRemove}".`)
+    setSkills(updated)           // optimistic update
+
+    try {
+      setIsSaving(true)
+      await updateProfileDB({ skills: updated })
+      showNotification(`Removed "${skillToRemove}" — saved to profile.`)
+    } catch (err) {
+      setSkills(skills)
+      showNotification(`Failed to save: ${err.message}`)
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   // Handle Quick Application from Matching Jobs
-  const handleQuickApply = (job) => {
+  const handleQuickApply = async (job) => {
     if (appliedJobs.some(a => a.title.toLowerCase() === job.title.toLowerCase() && a.company.toLowerCase() === job.company.toLowerCase())) {
       showNotification(`You have already applied for ${job.title} at ${job.company}!`)
       return
@@ -184,6 +209,7 @@ export function ProfilePage() {
 
     const newApplication = {
       id: Date.now(),
+      jobId: job.id || job._id,
       title: job.title,
       company: job.company,
       location: job.location,
@@ -197,16 +223,32 @@ export function ProfilePage() {
 
     const updated = [newApplication, ...appliedJobs]
     setAppliedJobs(updated)
-    updateUserProfile({ appliedJobs: updated })
-    showNotification(`🎉 Application submitted successfully for ${job.title} at ${job.company}!`)
+    try {
+      setIsSaving(true)
+      await updateProfileDB({ appliedJobs: updated })
+      showNotification(`🎉 Application submitted successfully for ${job.title} at ${job.company}!`)
+    } catch (err) {
+      setAppliedJobs(appliedJobs)
+      showNotification(`Failed to submit application: ${err.message}`)
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   // Withdraw Application
-  const handleWithdrawApplication = (id, title) => {
+  const handleWithdrawApplication = async (id, title) => {
     const updated = appliedJobs.filter(a => a.id !== id)
     setAppliedJobs(updated)
-    updateUserProfile({ appliedJobs: updated })
-    showNotification(`Withdrew application for ${title}.`)
+    try {
+      setIsSaving(true)
+      await updateProfileDB({ appliedJobs: updated })
+      showNotification(`Withdrew application for ${title}.`)
+    } catch (err) {
+      setAppliedJobs(appliedJobs)
+      showNotification(`Failed to withdraw application: ${err.message}`)
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   // Resume File Upload Simulation
@@ -235,10 +277,17 @@ export function ProfilePage() {
     }, 200)
   }
 
-  const handleSaveBio = () => {
+  const handleSaveBio = async () => {
     setIsEditingBio(false)
-    updateUserProfile({ bio })
-    showNotification('Profile bio updated!')
+    try {
+      setIsSaving(true)
+      await updateProfileDB({ bio })
+      showNotification('Bio saved to your profile!')
+    } catch (err) {
+      showNotification(`Failed to save bio: ${err.message}`)
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   // Filtered Applied Jobs list
@@ -490,9 +539,17 @@ export function ProfilePage() {
                   Manage your technical skills. Matching job roles and compatibility scores automatically recalculate.
                 </p>
               </div>
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">
-                {skills.length} Skills Listed
-              </span>
+              <div className="flex items-center gap-2">
+                {isSaving && (
+                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-warning/10 text-warning border border-warning/20 flex items-center gap-1.5">
+                    <RefreshCw size={12} className="animate-spin" />
+                    Saving...
+                  </span>
+                )}
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">
+                  {skills.length} Skills Listed
+                </span>
+              </div>
             </div>
 
             {/* Active Skills List */}

@@ -63,7 +63,8 @@ exports.signup = async (req, res) => {
       password: hashedPassword,
       profileType: null,
       isSetupCompleted: false,
-      profileDetails: {}
+      profileDetails: {},
+      appliedJobs: []
     });
 
     await newUser.save();
@@ -87,6 +88,7 @@ exports.signup = async (req, res) => {
       profileType: null,
       isSetupCompleted: false,
       profileDetails: {},
+      appliedJobs: [],
     };
 
     return res.status(201).json({
@@ -190,6 +192,10 @@ exports.login = async (req, res) => {
     };
     const token = signToken(tokenPayload);
 
+    // Clean up legacy duplicate key inside profileDetails if present
+    const cleanDetails = { ...(user.profileDetails || {}) };
+    delete cleanDetails.appliedJobs;
+
     const userResponse = {
       _id: user._id,
       name: user.name,
@@ -198,7 +204,8 @@ exports.login = async (req, res) => {
       role: 'user',
       profileType: user.profileType,
       isSetupCompleted: user.isSetupCompleted,
-      profileDetails: user.profileDetails,
+      profileDetails: cleanDetails,
+      appliedJobs: user.appliedJobs || user.profileDetails?.appliedJobs || [],
     };
 
     return res.status(200).json({
@@ -236,8 +243,11 @@ exports.setupProfile = async (req, res) => {
       return res.status(404).json({ error: 'User account not found.' });
     }
 
+    const cleanDetails = { ...(profileDetails || {}) };
+    delete cleanDetails.appliedJobs;
+
     user.profileType = profileType;
-    user.profileDetails = profileDetails;
+    user.profileDetails = cleanDetails;
     user.isSetupCompleted = true;
 
     await user.save();
@@ -251,6 +261,7 @@ exports.setupProfile = async (req, res) => {
       profileType: user.profileType,
       isSetupCompleted: user.isSetupCompleted,
       profileDetails: user.profileDetails,
+      appliedJobs: user.appliedJobs || [],
     };
 
     return res.status(200).json({
@@ -260,6 +271,65 @@ exports.setupProfile = async (req, res) => {
   } catch (err) {
     console.error('Setup profile error:', err);
     return res.status(500).json({ error: 'Server error during profile setup.' });
+  }
+};
+
+// ─── PATCH /api/auth/profile ──────────────────────────────────────────────
+// Protected: updates user's profileDetails fields (skills, bio, etc.)
+exports.updateProfile = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { skills, bio, appliedJobs } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User account not found.' });
+    }
+
+    const cleanDetails = { ...(user.profileDetails || {}) };
+    delete cleanDetails.appliedJobs;
+
+    // Merge allowed fields into profileDetails
+    if (Array.isArray(skills)) {
+      // Sanitize: ensure all skills are non-empty strings, max 50 chars each
+      const sanitized = skills
+        .filter(s => typeof s === 'string' && s.trim().length > 0)
+        .map(s => s.trim().substring(0, 50));
+      cleanDetails.skills = sanitized;
+    }
+
+    if (typeof bio === 'string') {
+      cleanDetails.bio = bio.substring(0, 500);
+    }
+
+    if (Array.isArray(appliedJobs)) {
+      user.appliedJobs = appliedJobs;
+      user.markModified('appliedJobs');
+    }
+
+    user.profileDetails = cleanDetails;
+    user.markModified('profileDetails');
+    await user.save();
+
+    const userResponse = {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      role: 'user',
+      profileType: user.profileType,
+      isSetupCompleted: user.isSetupCompleted,
+      profileDetails: user.profileDetails,
+      appliedJobs: user.appliedJobs || [],
+    };
+
+    return res.status(200).json({
+      message: 'Profile updated successfully.',
+      user: userResponse,
+    });
+  } catch (err) {
+    console.error('Update profile error:', err);
+    return res.status(500).json({ error: 'Server error during profile update.' });
   }
 };
 

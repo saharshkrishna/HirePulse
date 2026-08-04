@@ -5,7 +5,8 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000
 /** Returns the Authorization header object for the given scope ('user' | 'admin') */
 function authHeader(scope = 'user') {
   const key = scope === 'admin' ? 'hp_admin_token' : 'hp_user_token';
-  const token = sessionStorage.getItem(key);
+  // Check localStorage first (survives refresh), fall back to sessionStorage (legacy)
+  const token = localStorage.getItem(key) || sessionStorage.getItem(key);
   return token ? { 'Authorization': `Bearer ${token}` } : {};
 }
 
@@ -22,7 +23,9 @@ export async function fetchJobs(params = {}) {
   const queryString = new URLSearchParams(cleanParams).toString();
   const res = await fetch(`${API_BASE_URL}/jobs${queryString ? `?${queryString}` : ''}`);
   if (!res.ok) throw new Error('Failed to fetch jobs');
-  return res.json();
+  const data = await res.json();
+  // API returns { jobs: [...], pagination: {...} } — extract the array
+  return Array.isArray(data) ? data : (data.jobs || []);
 }
 
 export async function fetchCompanies() {

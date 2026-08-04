@@ -2,11 +2,11 @@ import React, { createContext, useState, useEffect, useContext } from 'react'
 
 const AuthContext = createContext()
 
-const STORAGE_USER = 'hp_user_session'
-const STORAGE_ADMIN = 'hp_admin_session'
-const TOKEN_USER = 'hp_user_token'
-const TOKEN_ADMIN = 'hp_admin_token'
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'
+const STORAGE_USER   = 'hp_user_session'
+const STORAGE_ADMIN  = 'hp_admin_session'
+const TOKEN_USER     = 'hp_user_token'
+const TOKEN_ADMIN    = 'hp_admin_token'
+const API_BASE_URL   = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'
 
 /**
  * Returns 'admin' if the current URL hash is an admin route, 'user' otherwise.
@@ -16,26 +16,31 @@ function getScopeFromHash(hash = '') {
 }
 
 /**
- * Builds Authorization header from the stored JWT for the given scope.
+ * Builds Authorization header from localStorage JWT for the given scope.
+ * Tokens are kept in localStorage so they survive page refreshes.
  */
 function getAuthHeaders(scope = 'user') {
   const tokenKey = scope === 'admin' ? TOKEN_ADMIN : TOKEN_USER
-  const token = sessionStorage.getItem(tokenKey)
-  return token ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' }
+  // Check localStorage first (persistent), fall back to sessionStorage (legacy)
+  const token = localStorage.getItem(tokenKey) || sessionStorage.getItem(tokenKey)
+  return token
+    ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+    : { 'Content-Type': 'application/json' }
 }
 
 /**
  * Returns the stored JWT for the current scope. Used by api.js callers.
  */
 export function getToken(scope = 'user') {
-  return sessionStorage.getItem(scope === 'admin' ? TOKEN_ADMIN : TOKEN_USER)
+  const key = scope === 'admin' ? TOKEN_ADMIN : TOKEN_USER
+  return localStorage.getItem(key) || sessionStorage.getItem(key)
 }
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  // Sync session state with active route scope on mount and hashchange
+  // Restore session on mount and whenever the route hash changes
   useEffect(() => {
     const syncSession = () => {
       // Legacy migration: move hp_user (old single key) to new scoped keys
@@ -49,13 +54,19 @@ export function AuthProvider({ children }) {
         localStorage.removeItem('hp_user')
       }
 
-      const scope = getScopeFromHash(window.location.hash)
+      const scope     = getScopeFromHash(window.location.hash)
       const storageKey = scope === 'admin' ? STORAGE_ADMIN : STORAGE_USER
-      const tokenKey = scope === 'admin' ? TOKEN_ADMIN : TOKEN_USER
+      const tokenKey  = scope === 'admin' ? TOKEN_ADMIN : TOKEN_USER
+
       const stored = localStorage.getItem(storageKey)
-      const token = sessionStorage.getItem(tokenKey)
+      // Accept token from localStorage (persistent) OR sessionStorage (legacy tabs)
+      const token  = localStorage.getItem(tokenKey) || sessionStorage.getItem(tokenKey)
 
       if (stored && token) {
+        // Also make sure it's in localStorage for future refreshes
+        if (!localStorage.getItem(tokenKey) && sessionStorage.getItem(tokenKey)) {
+          localStorage.setItem(tokenKey, sessionStorage.getItem(tokenKey))
+        }
         try {
           const parsed = JSON.parse(stored)
           if (parsed && (scope !== 'admin' || parsed.role === 'admin')) {
@@ -100,10 +111,12 @@ export function AuthProvider({ children }) {
       profileType: data.user.profileType,
       isSetupCompleted: data.user.isSetupCompleted,
       profileDetails: data.user.profileDetails || {},
+      appliedJobs: data.user.appliedJobs || [],
     }
 
-    // Store JWT in sessionStorage (cleared on tab close) and minimal profile in localStorage
-    sessionStorage.setItem(TOKEN_USER, data.token)
+    // Persist token in localStorage so it survives page refreshes
+    localStorage.setItem(TOKEN_USER, data.token)
+    sessionStorage.setItem(TOKEN_USER, data.token)  // keep sessionStorage in sync (legacy)
     localStorage.setItem(STORAGE_USER, JSON.stringify(safeUser))
     setUser(safeUser)
     return safeUser
@@ -135,6 +148,7 @@ export function AuthProvider({ children }) {
       isSetupCompleted: true,
     }
 
+    localStorage.setItem(TOKEN_ADMIN, data.token)
     sessionStorage.setItem(TOKEN_ADMIN, data.token)
     localStorage.setItem(STORAGE_ADMIN, JSON.stringify(safeAdmin))
     setUser(safeAdmin)
@@ -164,8 +178,10 @@ export function AuthProvider({ children }) {
       profileType: data.user.profileType,
       isSetupCompleted: data.user.isSetupCompleted,
       profileDetails: data.user.profileDetails || {},
+      appliedJobs: data.user.appliedJobs || [],
     }
 
+    localStorage.setItem(TOKEN_USER, data.token)
     sessionStorage.setItem(TOKEN_USER, data.token)
     localStorage.setItem(STORAGE_USER, JSON.stringify(safeUser))
     setUser(safeUser)
@@ -194,6 +210,7 @@ export function AuthProvider({ children }) {
       profileType: data.user.profileType,
       isSetupCompleted: data.user.isSetupCompleted,
       profileDetails: data.user.profileDetails,
+      appliedJobs: data.user.appliedJobs || [],
     }
 
     localStorage.setItem(STORAGE_USER, JSON.stringify(updatedUser))
@@ -218,14 +235,48 @@ export function AuthProvider({ children }) {
     return updatedUser
   }
 
+  // ── Action: Persist profile fields to DB (skills, bio) ──────────────────
+  const updateProfileDB = async (fields) => {
+    if (!user) throw new Error('Not authenticated')
+
+    const token = localStorage.getItem(TOKEN_USER) || sessionStorage.getItem(TOKEN_USER)
+    if (!token) throw new Error('Please log in to continue')
+
+    const res = await fetch(`${API_BASE_URL}/auth/profile`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(fields),
+    })
+
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || 'Profile update failed')
+
+    // Sync the full updated user (including new profileDetails) into state & storage
+    const updatedUser = {
+      ...user,
+      profileType: data.user.profileType,
+      isSetupCompleted: data.user.isSetupCompleted,
+      profileDetails: data.user.profileDetails,
+      appliedJobs: data.user.appliedJobs || user.appliedJobs || [],
+    }
+    localStorage.setItem(STORAGE_USER, JSON.stringify(updatedUser))
+    setUser(updatedUser)
+    return updatedUser
+  }
+
   // ── Action: Logout ───────────────────────────────────────────────────────
   const logout = () => {
     const scope = getScopeFromHash(window.location.hash) || (user?.role === 'admin' ? 'admin' : 'user')
     if (scope === 'admin' || user?.role === 'admin') {
       localStorage.removeItem(STORAGE_ADMIN)
+      localStorage.removeItem(TOKEN_ADMIN)
       sessionStorage.removeItem(TOKEN_ADMIN)
     } else {
       localStorage.removeItem(STORAGE_USER)
+      localStorage.removeItem(TOKEN_USER)
       sessionStorage.removeItem(TOKEN_USER)
     }
     setUser(null)
@@ -241,7 +292,7 @@ export function AuthProvider({ children }) {
     <AuthContext.Provider value={{
       user, loading,
       loginUser, loginAdmin, signupUser,
-      completeProfileSetup, updateUserProfile,
+      completeProfileSetup, updateUserProfile, updateProfileDB,
       logout, getHeaders
     }}>
       {children}

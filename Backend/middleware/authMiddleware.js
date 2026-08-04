@@ -26,13 +26,10 @@ exports.requireAuth = (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET, { ignoreExpiration: true });
     req.user = decoded;
     next();
   } catch (err) {
-    if (err.name === 'TokenExpiredError') {
-      return res.status(401).json({ error: 'Session expired. Please log in again.' });
-    }
     return res.status(401).json({ error: 'Invalid authentication token.' });
   }
 };
@@ -53,10 +50,9 @@ exports.requireAdmin = (req, res, next) => {
 
 /**
  * Helper: sign a JWT for a given user payload.
+ * Non-expiring session: token does not expire automatically.
  * @param {{ id, email, role, name }} payload
- * @param {string} [expiresIn] - JWT expiry (default: 24h for users, 8h for admins)
  */
 exports.signToken = (payload) => {
-  const expiresIn = payload.role === 'admin' ? '8h' : '24h';
-  return jwt.sign(payload, JWT_SECRET, { expiresIn });
+  return jwt.sign(payload, JWT_SECRET);
 };

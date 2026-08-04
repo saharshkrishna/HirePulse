@@ -31,7 +31,7 @@ function mongoSanitizeMiddleware(req, _res, next) {
 
 const { getJobs, createJob, updateJob, deleteJob } = require('./controllers/jobController');
 const { getCompanies } = require('./controllers/companyController');
-const { signup, login, setupProfile, migratePasswords } = require('./controllers/authController');
+const { signup, login, setupProfile, updateProfile, migratePasswords } = require('./controllers/authController');
 const { getStudents } = require('./controllers/adminController');
 const { ingestJobs, markJobsStale, getSources } = require('./controllers/n8nController');
 const apiKeyAuth = require('./middleware/apiKeyAuth');
@@ -66,7 +66,7 @@ app.use(cors({
     console.warn(`[CORS] Blocked origin: ${origin}`);
     return callback(new Error(`Origin ${origin} is not allowed by CORS policy.`));
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
   credentials: true,
 }));
@@ -104,6 +104,7 @@ app.use('/api/', apiLimiter);
 app.post('/api/auth/signup', authLimiter, signup);
 app.post('/api/auth/login', authLimiter, login);
 app.post('/api/auth/setup-profile', requireAuth, setupProfile);  // JWT required
+app.patch('/api/auth/profile', requireAuth, updateProfile);      // JWT required — update skills/bio
 
 // Admin-only utility: migrate SHA-256 passwords to bcrypt (run once)
 app.post('/api/auth/migrate-passwords', requireAuth, requireAdmin, migratePasswords);

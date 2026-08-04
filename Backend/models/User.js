@@ -32,6 +32,10 @@ const userSchema = new mongoose.Schema({
   profileDetails: {
     type: mongoose.Schema.Types.Mixed,
     default: {}
+  },
+  appliedJobs: {
+    type: mongoose.Schema.Types.Mixed,
+    default: []
   }
 }, { timestamps: true });
 
